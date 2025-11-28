@@ -77,6 +77,35 @@
       </section>
     </main>
 
+        <!-- DMページ -->
+    <main class="timeline hidden" id="messagesPage">
+      <header class="timeline-header">
+        <h1>メッセージ</h1>
+      </header>
+
+      <section class="messages-layout">
+        <!-- DMリスト -->
+        <aside class="dm-list" id="dmList">
+          <!-- JSでDMスレッドを追加 -->
+        </aside>
+
+        <!-- チャットエリア -->
+        <section class="dm-chat">
+          <div class="dm-chat-header" id="dmChatHeader">
+            メッセージする相手を選んでね
+          </div>
+          <div class="dm-chat-body" id="dmChatBody">
+            <!-- JSでメッセージが追加される -->
+          </div>
+          <div class="dm-chat-input">
+            <input id="dmInput" type="text" placeholder="メッセージを作成" />
+            <button id="dmSendBtn">送信</button>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    
     <!-- 右サイドバー -->
     <aside class="sidebar-right">
       <div class="top-right-row">
