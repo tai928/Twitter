@@ -3,64 +3,80 @@
 <head>
   <meta charset="UTF-8" />
   <title>StepLink</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css" />
+  <!-- Supabase JS SDK（必須） -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body data-theme="dark">
   <div class="app">
     <!-- 左サイドバー -->
     <aside class="sidebar-left">
-      <div class="logo">🔗</div>
+      <div class="logo">StepLink</div>
       <nav class="nav">
         <a href="#" class="nav-item active" data-page="home">ホーム</a>
-        <a href="#" class="nav-item" data-page="notifications">通知</a>
         <a href="#" class="nav-item" data-page="messages">メッセージ</a>
         <a href="#" class="nav-item" data-page="profile">プロフィール</a>
       </nav>
-      <button class="tweet-button" id="openModalBtn">投稿する</button>
+
+      <button id="themeToggle" class="icon-btn theme-toggle" title="テーマ切り替え">
+        🌙
+      </button>
+
+      <button class="post-button" id="openModalBtn">投稿する</button>
+
       <div class="account-summary">
         <div class="account-main">
           <div class="account-avatar" id="currentUserAvatar">🧑‍💻</div>
           <div class="account-text">
-            <div class="account-name" id="currentUserName">たい</div>
-            <div class="account-handle" id="currentUserHandle">@tai_clone</div>
+            <div class="account-name" id="currentUserName">未ログイン</div>
+            <div class="account-handle" id="currentUserHandle"></div>
           </div>
         </div>
-        <button class="icon-btn small" id="switchAccountBtn">切り替え</button>
+        <button class="icon-btn small" id="switchAccountBtn">アカウント</button>
       </div>
     </aside>
 
-    <!-- ホームタイムライン -->
+    <!-- ホーム -->
     <main class="timeline" id="homePage">
       <header class="timeline-header">
         <h1>ホーム</h1>
       </header>
 
-      <!-- 新規ツイートカード -->
-      <section class="new-tweet-card">
+      <!-- 新規投稿 -->
+      <section class="new-post-card">
         <div class="avatar">🧑‍💻</div>
-        <div class="new-tweet-body">
-          <textarea id="tweetInput"
-                    placeholder="いまどうしてる？"></textarea>
+        <div class="new-post-body">
+          <textarea id="tweetInput" placeholder="いまどうしてる？"></textarea>
 
           <div class="image-preview" id="imagePreview"></div>
 
-          <div class="new-tweet-actions">
+          <div class="new-post-actions">
             <div class="left-actions">
-              <button type="button" class="icon-btn" id="imageSelectBtn">🖼 </button>
+              <button type="button" class="icon-btn" id="imageSelectBtn">🖼 画像</button>
               <span class="char-counter" id="charCounter">0 / 140</span>
             </div>
-            <button id="postTweetBtn">ツイート</button>
+            <button id="postTweetBtn">投稿</button>
           </div>
           <input type="file" id="imageInput" accept="image/*" hidden />
         </div>
       </section>
 
-      <section id="tweetsContainer" class="tweets">
-        <!-- JSからツイートがここに追加される -->
+      <!-- 投稿一覧 -->
+      <section id="tweetsContainer" class="posts"></section>
+    </main>
+
+    <!-- メッセージ（仮置き） -->
+    <main class="timeline hidden" id="messagesPage">
+      <header class="timeline-header">
+        <h1>メッセージ</h1>
+      </header>
+      <section class="placeholder">
+        <p>メッセージ機能は準備中です。</p>
       </section>
     </main>
 
-    <!-- プロフィールページ -->
+    <!-- プロフィール -->
     <main class="timeline hidden" id="profilePage">
       <header class="timeline-header">
         <h1>プロフィール</h1>
@@ -70,101 +86,49 @@
         <div class="profile-banner"></div>
         <div class="profile-main">
           <div class="profile-avatar">🧑‍💻</div>
-          <button class="edit-profile-btn">プロフィールを編集</button>
+          <button class="edit-profile-btn" disabled>プロフィール編集（準備中）</button>
         </div>
         <div class="profile-info">
-          <div class="profile-name">たい</div>
-          <div class="profile-handle">@tai_</div>
-          <div class="profile-bio">デザインであそんでる学生。</div>
+          <div class="profile-name" id="profileName">StepLinkユーザー</div>
+          <div class="profile-handle" id="profileHandle">@user</div>
+          <div class="profile-bio" id="profileBio">プロフィール情報は順次対応予定です。</div>
         </div>
         <nav class="profile-tabs">
-          <button class="profile-tab active">ポスト</button>
+          <button class="profile-tab active">投稿</button>
         </nav>
       </section>
 
-      <section id="profileTweetsContainer" class="tweets">
-        <!-- 自分のツイート一覧（全部） -->
-      </section>
+      <section id="profileTweetsContainer" class="posts"></section>
     </main>
-
-        <!-- DMページ -->
-    <main class="timeline hidden" id="messagesPage">
-      <header class="timeline-header">
-        <h1>メッセージ</h1>
-      </header>
-
-      <section class="messages-layout">
-        <!-- DMリスト -->
-        <aside class="dm-list" id="dmList">
-          <!-- JSでDMスレッドを追加 -->
-        </aside>
-
-        <!-- チャットエリア -->
-        <section class="dm-chat">
-          <div class="dm-chat-header" id="dmChatHeader">
-            メッセージする相手を選んでね
-          </div>
-          <div class="dm-chat-body" id="dmChatBody">
-            <!-- JSでメッセージが追加される -->
-          </div>
-          <div class="dm-chat-input">
-            <input id="dmInput" type="text" placeholder="メッセージを作成" />
-            <button id="dmSendBtn">送信</button>
-          </div>
-        </section>
-      </section>
-    </main>
-
-    
-    <!-- 右サイドバー -->
-    <aside class="sidebar-right">
-      <div class="top-right-row">
-        <div class="search-box">
-          <input type="text" placeholder="検索" />
-        </div>
-        <button id="themeToggle" class="icon-btn theme-toggle" title="テーマ切り替え">
-          🌙
-        </button>
-      </div>
-
-      <div class="card">
-        <h2>いまどう？</h2>
-        <ul class="trend-list">
-          <li>#StepLink</li>
-          <li>#Music</li>
-          <li>#AI</li>
-        </ul>
-      </div>
-    </aside>
   </div>
 
-  <!-- ツイート用モーダル -->
+  <!-- 投稿モーダル -->
   <div id="tweetModal" class="modal hidden">
     <div class="modal-backdrop"></div>
     <div class="modal-content">
       <header class="modal-header">
         <button id="closeModalBtn" class="icon-btn">✕</button>
       </header>
-      <section class="new-tweet-card modal-body">
+      <section class="new-post-card modal-body">
         <div class="avatar">🧑‍💻</div>
-        <div class="new-tweet-body">
-          <textarea id="tweetInputModal"
-                    placeholder="いまどうしてる？"></textarea>
+        <div class="new-post-body">
+          <textarea id="tweetInputModal" placeholder="いまどうしてる？"></textarea>
 
           <div class="image-preview" id="imagePreviewModal"></div>
 
-          <div class="new-tweet-actions">
+          <div class="new-post-actions">
             <div class="left-actions">
               <button type="button" class="icon-btn" id="imageSelectBtnModal">🖼 画像</button>
               <span class="char-counter" id="charCounterModal">0 / 140</span>
             </div>
-            <button id="postTweetBtnModal">ツイート</button>
+            <button id="postTweetBtnModal">投稿</button>
           </div>
           <input type="file" id="imageInputModal" accept="image/*" hidden />
         </div>
       </section>
     </div>
   </div>
+
   <!-- アカウント切り替えモーダル -->
   <div id="accountModal" class="modal hidden">
     <div class="modal-backdrop"></div>
@@ -178,11 +142,11 @@
           <button class="account-tab" data-mode="register">新規作成</button>
         </div>
 
-        <!-- ログイン画面 -->
+        <!-- ログイン -->
         <div id="accountLoginView">
           <label>
-            ハンドルネーム（@なし）
-            <input id="loginHandleInput" type="text" placeholder="tai_clone" />
+            メールアドレス
+            <input id="loginHandleInput" type="email" placeholder="you@example.com" />
           </label>
           <label>
             パスワード
@@ -191,11 +155,11 @@
           <button class="primary" id="loginSubmitBtn">ログイン</button>
           <div id="loginError" class="account-error"></div>
           <div class="account-note">
-            ※勉強用だから、本当のパスワードは絶対に入れないこと！
+            ※勉強用サービスなので、本当の重要なパスワードは使わないでね。
           </div>
         </div>
 
-        <!-- 新規登録画面 -->
+        <!-- 新規登録 -->
         <div id="accountRegisterView" class="hidden">
           <label>
             表示名
@@ -203,7 +167,11 @@
           </label>
           <label>
             ハンドルネーム（@なし）
-            <input id="regHandleInput" type="text" placeholder="tai_sub" />
+            <input id="regHandleInput" type="text" placeholder="tai" />
+          </label>
+          <label>
+            メールアドレス
+            <input id="regEmailInput" type="email" placeholder="you@example.com" />
           </label>
           <label>
             好きな絵文字（アイコン）
@@ -216,7 +184,7 @@
           <button class="primary" id="registerSubmitBtn">アカウント作成</button>
           <div id="registerError" class="account-error"></div>
           <div class="account-note">
-            ※これもローカル保存だけ。ガチパスワードは禁止ね✋
+            ※メールとパスワードはブラウザからSupabaseに送られます。実サービスでは使わない情報にしておいてね。
           </div>
         </div>
       </div>
