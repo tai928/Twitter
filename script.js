@@ -526,3 +526,8 @@ if (openModalBtn && closeModalBtn && tweetModal) {
   await updateCurrentUserUI();
   await loadAndRenderTweets();
 })();
+
+const SUPABASE_URL = "https://ngtthuwmqdcxgddlbsyo.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_YJzguO8nmmVKURa58cKwVw__9ulKxI6";
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
