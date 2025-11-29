@@ -1,12 +1,36 @@
-// common.js
+// ==============================
+// Supabase 初期化
+// ==============================
+const SUPABASE_URL = "https://ngtthuwmqdcxgddlbsyo.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_YJzguO8nmmVKURa58cKwVw__9ulKxI6";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-document.addEventListener("DOMContentLoaded", () => {
-  // テーマ切り替え
+document.addEventListener("DOMContentLoaded", async () => {
+
+  // ==============================
+  // ログイン状態の確認 & UI更新
+  // ==============================
+  const {
+    data: { user },
+  } = await supabaseClient.auth.getUser();
+
+  if (user) {
+    const name = user.user_metadata.name || "ユーザー";
+    const handle = user.user_metadata.handle || "user";
+    const avatar = user.user_metadata.avatar || "🧑‍💻";
+
+    // 左下UI
+    document.getElementById("currentUserName").textContent = name;
+    document.getElementById("currentUserHandle").textContent = "@" + handle;
+    document.getElementById("currentUserAvatar").textContent = avatar;
+  }
+
+  // ==============================
+  // ✨ テーマ切替
+  // ==============================
   const themeToggleBtn = document.getElementById("themeToggle");
   const savedTheme = localStorage.getItem("steplink-theme");
-  if (savedTheme === "light" || savedTheme === "dark") {
-    document.body.setAttribute("data-theme", savedTheme);
-  }
+  if (savedTheme) document.body.setAttribute("data-theme", savedTheme);
 
   if (themeToggleBtn) {
     themeToggleBtn.addEventListener("click", () => {
@@ -17,7 +41,137 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 投稿関連（ホームにだけ要素があるけど、nullチェックしてるから他ページでもエラーにならない）
+  // ==============================
+  // ✨ アカウントモーダル開閉
+  // ==============================
+  const accountModal = document.getElementById("accountModal");
+  const switchAccountBtn = document.getElementById("switchAccountBtn");
+  const closeAccountModalBtn = document.getElementById("closeAccountModalBtn");
+  const accountBackdrop = accountModal?.querySelector(".modal-backdrop");
+
+  function openAccountModal() {
+    accountModal.classList.remove("hidden");
+  }
+  function closeAccountModal() {
+    accountModal.classList.add("hidden");
+  }
+
+  if (switchAccountBtn) switchAccountBtn.addEventListener("click", openAccountModal);
+  if (closeAccountModalBtn) closeAccountModalBtn.addEventListener("click", closeAccountModal);
+  if (accountBackdrop) accountBackdrop.addEventListener("click", closeAccountModal);
+
+  // ==============================
+  // ✨ アカウントタブ切替（ログイン/新規）
+  // ==============================
+  const accountTabs = document.querySelectorAll(".account-tab");
+  const accountLoginView = document.getElementById("accountLoginView");
+  const accountRegisterView = document.getElementById("accountRegisterView");
+
+  function switchAccountTab(mode) {
+    accountTabs.forEach((t) =>
+      t.classList.toggle("active", t.dataset.mode === mode)
+    );
+    if (mode === "login") {
+      accountLoginView.classList.remove("hidden");
+      accountRegisterView.classList.add("hidden");
+    } else {
+      accountLoginView.classList.add("hidden");
+      accountRegisterView.classList.remove("hidden");
+    }
+  }
+
+  accountTabs.forEach((t) =>
+    t.addEventListener("click", () => switchAccountTab(t.dataset.mode))
+  );
+
+  // ==============================
+  // ✨ Supabase 新規登録
+  // ==============================
+  const regNameInput = document.getElementById("regNameInput");
+  const regHandleInput = document.getElementById("regHandleInput");
+  const regEmailInput = document.getElementById("regEmailInput");
+  const regAvatarInput = document.getElementById("regAvatarInput");
+  const regPasswordInput = document.getElementById("regPasswordInput");
+  const registerError = document.getElementById("registerError");
+  const registerSubmitBtn = document.getElementById("registerSubmitBtn");
+
+  if (registerSubmitBtn) {
+    registerSubmitBtn.addEventListener("click", async () => {
+      const name = regNameInput.value;
+      const handle = regHandleInput.value;
+      const email = regEmailInput.value;
+      const avatar = regAvatarInput.value || "🧑‍💻";
+      const password = regPasswordInput.value;
+
+      const { data, error } = await supabaseClient.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { name, handle, avatar },
+        },
+      });
+
+      if (error) {
+        if (error.message.includes("User already registered")) {
+          registerError.textContent = "このメールは登録済みだよ🥺 ログインしてね。";
+          switchAccountTab("login");
+        } else {
+          registerError.textContent = error.message;
+        }
+        return;
+      }
+
+      alert("アカウント作成できたよ💚 ログインしてみてね！");
+      switchAccountTab("login");
+    });
+  }
+
+  // ==============================
+  // ✨ Supabase ログイン処理
+  // ==============================
+  const loginHandleInput = document.getElementById("loginHandleInput");
+  const loginPasswordInput = document.getElementById("loginPasswordInput");
+  const loginError = document.getElementById("loginError");
+  const loginSubmitBtn = document.getElementById("loginSubmitBtn");
+
+  if (loginSubmitBtn) {
+    loginSubmitBtn.addEventListener("click", async () => {
+      const email = loginHandleInput.value;
+      const password = loginPasswordInput.value;
+
+      const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        loginError.textContent = error.message;
+        return;
+      }
+
+      // ページの情報更新のため再読み込み
+      location.reload();
+    });
+  }
+
+  // ==============================
+  // ✨ ログアウト
+  // ==============================
+  document.getElementById("currentUserName")?.addEventListener("dblclick", async () => {
+    await supabaseClient.auth.signOut();
+    location.reload();
+  });
+
+  // ==============================
+  // ✨ 以下：投稿・モーダルは前と同じ（フロントのみ）
+  // ==============================
+
+  function updateCounter(input, counter) {
+    if (!input || !counter) return;
+    counter.textContent = `${input.value.length} / 140`;
+  }
+
+  // ホーム投稿系
   const tweetInput = document.getElementById("tweetInput");
   const charCounter = document.getElementById("charCounter");
   const imageSelectBtn = document.getElementById("imageSelectBtn");
@@ -26,64 +180,26 @@ document.addEventListener("DOMContentLoaded", () => {
   const postTweetBtn = document.getElementById("postTweetBtn");
   const tweetsContainer = document.getElementById("tweetsContainer");
 
-  const tweetInputModal = document.getElementById("tweetInputModal");
-  const charCounterModal = document.getElementById("charCounterModal");
-  const imageSelectBtnModal = document.getElementById("imageSelectBtnModal");
-  const imageInputModal = document.getElementById("imageInputModal");
-  const imagePreviewModal = document.getElementById("imagePreviewModal");
-  const postTweetBtnModal = document.getElementById("postTweetBtnModal");
-
-  function updateCounter(input, counter) {
-    if (!input || !counter) return;
-    counter.textContent = `${input.value.length} / 140`;
-  }
-
-  if (tweetInput && charCounter) {
+  if (tweetInput) {
     updateCounter(tweetInput, charCounter);
     tweetInput.addEventListener("input", () => updateCounter(tweetInput, charCounter));
   }
-  if (tweetInputModal && charCounterModal) {
-    updateCounter(tweetInputModal, charCounterModal);
-    tweetInputModal.addEventListener("input", () =>
-      updateCounter(tweetInputModal, charCounterModal)
-    );
-  }
 
-  function handleImageSelect(fileInput, previewEl) {
-    if (!fileInput || !previewEl || !fileInput.files || fileInput.files.length === 0) return;
-    const file = fileInput.files[0];
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      previewEl.innerHTML = "";
-      const img = document.createElement("img");
-      img.src = e.target.result;
-      previewEl.appendChild(img);
-    };
-    reader.readAsDataURL(file);
-  }
-
-  if (imageSelectBtn && imageInput) {
+  if (imageSelectBtn) {
     imageSelectBtn.addEventListener("click", () => imageInput.click());
-    imageInput.addEventListener("change", () =>
-      handleImageSelect(imageInput, imagePreview)
-    );
+    imageInput.addEventListener("change", () => {
+      const file = imageInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        imagePreview.innerHTML = `<img src="${e.target.result}" />`;
+      };
+      reader.readAsDataURL(file);
+    });
   }
 
-  if (imageSelectBtnModal && imageInputModal) {
-    imageSelectBtnModal.addEventListener("click", () => imageInputModal.click());
-    imageInputModal.addEventListener("change", () =>
-      handleImageSelect(imageInputModal, imagePreviewModal)
-    );
-  }
-
-  function addTweetFrom(input, counter, preview) {
-    if (!input || !tweetsContainer) return;
-    const text = input.value.trim();
-    if (!text) return;
-    if (text.length > 140) {
-      alert("140文字までだよ");
-      return;
-    }
+  function addTweet(text) {
+    if (!tweetsContainer) return;
 
     const article = document.createElement("article");
     article.className = "post";
@@ -95,86 +211,34 @@ document.addEventListener("DOMContentLoaded", () => {
           <span class="post-handle">@user</span>
           <span class="post-time">今</span>
         </div>
-        <div class="post-text"></div>
+        <div class="post-text">${text}</div>
       </div>
     `;
-    article.querySelector(".post-text").textContent = text;
-
     tweetsContainer.prepend(article);
-
-    input.value = "";
-    if (counter) updateCounter(input, counter);
-    if (preview) preview.innerHTML = "";
   }
 
-  if (postTweetBtn && tweetInput) {
-    postTweetBtn.addEventListener("click", () =>
-      addTweetFrom(tweetInput, charCounter, imagePreview)
-    );
-  }
-  if (postTweetBtnModal && tweetInputModal) {
-    postTweetBtnModal.addEventListener("click", () =>
-      addTweetFrom(tweetInputModal, charCounterModal, imagePreviewModal)
-    );
+  if (postTweetBtn) {
+    postTweetBtn.addEventListener("click", () => {
+      if (!tweetInput.value.trim()) return;
+      addTweet(tweetInput.value.trim());
+      tweetInput.value = "";
+      updateCounter(tweetInput, charCounter);
+      imagePreview.innerHTML = "";
+    });
   }
 
-  // 投稿モーダル
+  // モーダル（投稿）
   const tweetModal = document.getElementById("tweetModal");
   const openModalBtn = document.getElementById("openModalBtn");
   const closeModalBtn = document.getElementById("closeModalBtn");
-  const tweetModalBackdrop = tweetModal?.querySelector(".modal-backdrop");
 
   function openTweetModal() {
-    if (tweetModal) tweetModal.classList.remove("hidden");
+    tweetModal.classList.remove("hidden");
   }
   function closeTweetModal() {
-    if (tweetModal) tweetModal.classList.add("hidden");
+    tweetModal.classList.add("hidden");
   }
 
-  if (openModalBtn && tweetModal) openModalBtn.addEventListener("click", openTweetModal);
+  if (openModalBtn) openModalBtn.addEventListener("click", openTweetModal);
   if (closeModalBtn) closeModalBtn.addEventListener("click", closeTweetModal);
-  if (tweetModalBackdrop) tweetModalBackdrop.addEventListener("click", closeTweetModal);
-
-  // アカウントモーダル
-  const accountModal = document.getElementById("accountModal");
-  const switchAccountBtn = document.getElementById("switchAccountBtn");
-  const closeAccountModalBtn = document.getElementById("closeAccountModalBtn");
-  const accountBackdrop = accountModal?.querySelector(".modal-backdrop");
-  const accountTabs = document.querySelectorAll(".account-tab");
-  const accountLoginView = document.getElementById("accountLoginView");
-  const accountRegisterView = document.getElementById("accountRegisterView");
-
-  function openAccountModal() {
-    if (accountModal) accountModal.classList.remove("hidden");
-  }
-  function closeAccountModal() {
-    if (accountModal) accountModal.classList.add("hidden");
-  }
-
-  if (switchAccountBtn && accountModal) {
-    switchAccountBtn.addEventListener("click", openAccountModal);
-  }
-  if (closeAccountModalBtn) closeAccountModalBtn.addEventListener("click", closeAccountModal);
-  if (accountBackdrop) accountBackdrop.addEventListener("click", closeAccountModal);
-
-  function switchAccountTab(mode) {
-    accountTabs.forEach((tab) => {
-      if (tab.dataset.mode === mode) tab.classList.add("active");
-      else tab.classList.remove("active");
-    });
-    if (!accountLoginView || !accountRegisterView) return;
-    if (mode === "login") {
-      accountLoginView.classList.remove("hidden");
-      accountRegisterView.classList.add("hidden");
-    } else {
-      accountLoginView.classList.add("hidden");
-      accountRegisterView.classList.remove("hidden");
-    }
-  }
-
-  accountTabs.forEach((tab) => {
-    tab.addEventListener("click", () => {
-      switchAccountTab(tab.dataset.mode);
-    });
-  });
 });
