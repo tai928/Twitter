@@ -466,7 +466,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     openModalBtn.addEventListener("click", openTweetModal);
   }
   if (closeModalBtn) {
-    closeTweetModalBtn?.addEventListener("click", closeTweetModal);
+    closeModalBtn.addEventListener("click", closeTweetModal);
   }
   if (tweetModalBackdrop) {
     tweetModalBackdrop.addEventListener("click", closeTweetModal);
@@ -503,3 +503,4 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
   }
 });
+
