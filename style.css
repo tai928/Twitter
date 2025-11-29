@@ -443,32 +443,38 @@ textarea {
    PCレイアウト（768px以上）
 =========================== */
 @media (min-width: 768px) {
+  /* 画面全体の横幅をコントロール（中央に寄せる） */
   .app {
     display: flex;
-    justify-content: center;
+    max-width: 1100px;   /* サイドバー + タイムライン分くらい */
+    margin: 0 auto;      /* 画面中央に配置 */
+    min-height: 100vh;
   }
 
+  /* サイドバーを左に固定カラムとして表示 */
   .sidebar-left {
     display: flex;
     flex-direction: column;
-    position: fixed;
-    left: 0;
+    position: sticky;    /* ページ上部で固定（fixedより扱いやすい） */
     top: 0;
-    bottom: 0;
-    width: 220px;
+    align-self: flex-start;
+    width: 240px;
     padding: 20px;
     background: #f5f5f5;
     border-right: 1px solid #ddd;
+    height: 100vh;
   }
 
+  /* タイムラインは「残りの幅」で中央寄せ */
   main.timeline {
-    max-width: 700px;
-    margin: 0 auto;
-    margin-left: 260px; /* サイドバー分 + 少し余白 */
+    flex: 1;
+    max-width: 700px;      /* カラム幅 */
+    margin: 0 auto;        /* カラム自体を中央寄せ */
     padding: 24px 24px 40px;
   }
 
+  /* PCでは下ナビを消す */
   .bottom-nav {
-    display: none; /* PCでは下ナビ非表示 */
+    display: none;
   }
 }
