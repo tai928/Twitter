@@ -1,11 +1,11 @@
 /* ===========================
-   基本レイアウト
+   ベース
 =========================== */
 body {
   margin: 0;
   padding: 0;
   font-family: "Helvetica Neue", Arial, sans-serif;
-  background: #f4f4f4; /* 固定テーマ：ライト */
+  background: #f4f4f4;
   color: #222;
 }
 
@@ -15,12 +15,25 @@ body {
 }
 
 /* ===========================
+   色定義（緑テーマ）
+=========================== */
+:root {
+  --green-main: #81B33B;     /* 通常 */
+  --green-hover: #638B2C;    /* ホバー */
+  --green-press: #4E6D23;    /* プレス（押した時） */
+  --line: #ddd;
+  --bg-white: #ffffff;
+  --text-main: #222;
+  --text-sub: #777;
+}
+
+/* ===========================
    左サイドバー
 =========================== */
 .sidebar-left {
   width: 240px;
-  background: #ffffff;
-  border-right: 1px solid #ddd;
+  background: var(--bg-white);
+  border-right: 1px solid var(--line);
   padding: 20px 15px;
   display: flex;
   flex-direction: column;
@@ -40,6 +53,7 @@ body {
   gap: 12px;
   margin-bottom: 20px;
 }
+
 .nav-item {
   text-decoration: none;
   color: #333;
@@ -51,34 +65,33 @@ body {
   background: #eee;
 }
 .nav-item.active {
-  background: #39C5BB;
+  background: var(--green-main);
   color: white;
-}
-
-.theme-toggle {
-  margin-top: 10px;
-  background: #eee;
-  border: none;
 }
 
 .post-button {
   margin-top: 10px;
   padding: 10px 14px;
-  background: #39C5BB;
+  background: var(--green-main);
   border: none;
   color: white;
   border-radius: 14px;
   font-weight: bold;
   cursor: pointer;
+  transition: 0.15s;
 }
 .post-button:hover {
-  opacity: 0.85;
+  background: var(--green-hover);
+}
+.post-button:active {
+  background: var(--green-press);
 }
 
+/* 左下アカウント */
 .account-summary {
   margin-top: auto;
   padding-top: 20px;
-  border-top: 1px solid #ddd;
+  border-top: 1px solid var(--line);
 }
 
 .account-main {
@@ -104,7 +117,7 @@ body {
 }
 
 /* ===========================
-   メインタイムライン
+   タイムライン
 =========================== */
 .timeline {
   margin-left: 240px;
@@ -114,49 +127,26 @@ body {
 }
 
 .timeline-header {
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--line);
   padding: 10px 20px;
-  background: #fff;
+  background: var(--bg-white);
 }
 
+/* ===========================
+   投稿カード
+=========================== */
 .new-post-card {
-  background: #fff;
+  background: var(--bg-white);
   margin: 20px;
   padding: 15px;
   border-radius: 12px;
   display: flex;
   gap: 10px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--line);
 }
 
 .new-post-body {
   flex: 1;
-}
-
-.new-post-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.icon-btn {
-  padding: 6px 10px;
-  border: none;
-  background: #eee;
-  border-radius: 10px;
-  cursor: pointer;
-}
-.icon-btn:hover {
-  background: #ddd;
-}
-
-#postTweetBtn {
-  padding: 8px 14px;
-  background: #39C5BB;
-  border: none;
-  color: white;
-  border-radius: 12px;
-  cursor: pointer;
 }
 
 textarea {
@@ -168,16 +158,47 @@ textarea {
   background: transparent;
 }
 
+#postTweetBtn {
+  padding: 8px 14px;
+  background: var(--green-main);
+  border: none;
+  color: white;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+#postTweetBtn:hover {
+  background: var(--green-hover);
+}
+#postTweetBtn:active {
+  background: var(--green-press);
+}
+
+.icon-btn {
+  padding: 6px 10px;
+  border: none;
+  background: #eee;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.icon-btn:hover {
+  background: #ddd;
+}
+.icon-btn:active {
+  background: #ccc;
+}
+
 /* ===========================
-   投稿一覧
+   投稿本体
 =========================== */
 .posts {
   margin-top: 10px;
 }
 .post {
-  background: #fff;
+  background: var(--bg-white);
   padding: 15px 20px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--line);
   display: flex;
   gap: 12px;
 }
@@ -193,7 +214,7 @@ textarea {
   font-weight: bold;
 }
 .post-time {
-  color: #777;
+  color: var(--text-sub);
 }
 .post-text {
   margin-top: 6px;
@@ -201,7 +222,7 @@ textarea {
 }
 
 /* ===========================
-   モーダル（投稿＆アカウント）
+   モーダル共通
 =========================== */
 .modal {
   position: fixed;
@@ -222,7 +243,7 @@ textarea {
 
 .modal-content {
   position: relative;
-  background: #fff;
+  background: var(--bg-white);
   width: 90%;
   max-width: 480px;
   padding-bottom: 20px;
@@ -234,7 +255,7 @@ textarea {
   display: flex;
   justify-content: flex-end;
   padding: 10px 15px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--line);
 }
 
 .modal-body {
@@ -242,21 +263,42 @@ textarea {
 }
 
 /* ===========================
+   投稿モーダルの投稿ボタン
+=========================== */
+#postTweetBtnModal {
+  padding: 8px 14px;
+  background: var(--green-main);
+  border: none;
+  color: white;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+#postTweetBtnModal:hover {
+  background: var(--green-hover);
+}
+#postTweetBtnModal:active {
+  background: var(--green-press);
+}
+
+/* ===========================
    アカウントモーダル
 =========================== */
 .account-tabs {
   display: flex;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--line);
 }
 .account-tab {
   flex: 1;
   text-align: center;
   padding: 12px;
   cursor: pointer;
+  transition: 0.15s;
 }
 .account-tab.active {
-  border-bottom: 3px solid #39C5BB;
+  border-bottom: 3px solid var(--green-main);
   font-weight: bold;
+  color: var(--green-main);
 }
 
 .account-modal-body label {
@@ -266,7 +308,7 @@ textarea {
 .account-modal-body input {
   width: 100%;
   padding: 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--line);
   border-radius: 10px;
   margin-top: 5px;
 }
@@ -274,13 +316,21 @@ textarea {
 .primary {
   width: 100%;
   padding: 12px;
-  background: #39C5BB;
+  background: var(--green-main);
   color: white;
   border: none;
   border-radius: 12px;
   margin-top: 10px;
   cursor: pointer;
+  transition: 0.15s;
 }
+.primary:hover {
+  background: var(--green-hover);
+}
+.primary:active {
+  background: var(--green-press);
+}
+
 .account-error {
   color: red;
   margin-top: 8px;
@@ -290,15 +340,14 @@ textarea {
    プロフィールページ
 =========================== */
 .profile-header {
-  background: #fff;
+  background: var(--bg-white);
   padding-bottom: 20px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--line);
 }
-
 .profile-banner {
   width: 100%;
   height: 120px;
-  background: #ccc;
+  background: #d8e8cf; /* 柔らかい緑系 */
 }
 
 .profile-main {
@@ -309,10 +358,10 @@ textarea {
 
 .profile-avatar {
   font-size: 64px;
-  background: #fff;
+  background: var(--bg-white);
   padding: 10px;
   border-radius: 50%;
-  border: 2px solid #ddd;
+  border: 2px solid var(--line);
 }
 
 .profile-info {
@@ -324,9 +373,8 @@ textarea {
   font-size: 22px;
   font-weight: bold;
 }
-
 .profile-handle {
-  color: #777;
+  color: var(--text-sub);
   font-size: 15px;
   margin-bottom: 6px;
 }
