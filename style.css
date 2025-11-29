@@ -449,11 +449,16 @@ textarea {
   height: 56px;
   background: #ffffff;
   border-top: 1px solid #e0e0e0;
-  display: none;              /* PCでは隠す */
+  display: none;
   justify-content: space-around;
   align-items: center;
   z-index: 1000;
+
+  /* ▼ iPhone のホームバー対策 */
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  box-sizing: content-box;
 }
+
 
 .bottom-nav-item {
   flex: 1;
@@ -496,7 +501,7 @@ textarea {
     max-width: 600px;
     margin: 0 auto;
     padding: 16px;
-    padding-bottom: 80px;    /* 下メニューぶんの余白 */
+    padding-bottom: 96px;    /* 下メニューぶんの余白 */
   }
 
   .bottom-nav {
