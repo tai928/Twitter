@@ -536,21 +536,25 @@ function setupEvents() {
     closeAccountModal();
   });
 
-  // 新規登録
-  registerSubmitBtn.addEventListener("click", async () => {
-    registerError.textContent = "";
+// 新規登録
+registerSubmitBtn.addEventListener("click", async () => {
+  registerError.textContent = "";
 
-    const name = regNameInput.value.trim();
-    const handle = regHandleInput.value.trim();
-    const email = regEmailInput.value.trim();
-    const avatar = (regAvatarInput.value || "🧑‍💻").trim();
-    const password = regPasswordInput.value;
+  const name = regNameInput.value.trim();
+  const handle = regHandleInput.value.trim();
+  const email = regEmailInput.value.trim();
+  const avatar = (regAvatarInput.value || "🧑‍💻").trim();
+  const password = regPasswordInput.value;
 
-    if (!name || !handle || !email || !password) {
-      registerError.textContent = "未入力の項目があるよ…";
-      return;
-    }
+  if (!name || !handle || !email || !password) {
+    registerError.textContent = "未入力の項目があるよ…";
+    return;
+  }
 
+  registerSubmitBtn.disabled = true;
+  registerSubmitBtn.textContent = "作成中...";
+
+  try {
     // 1️⃣ サインアップ
     const { error: signUpError } = await supabase.auth.signUp({
       email,
@@ -559,16 +563,32 @@ function setupEvents() {
 
     if (signUpError) {
       console.error("signUp error:", signUpError);
-      registerError.textContent = "サインアップに失敗しちゃった…";
+      registerError.textContent =
+        signUpError.message || "サインアップに失敗しちゃった…";
       return;
     }
 
+    // 2️⃣ すぐサインインして「セッション」を作る
+    const { data: signInData, error: signInError } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+    if (signInError) {
+      console.error("signIn after signUp error:", signInError);
+      registerError.textContent =
+        (signInError.message || "ログインでエラーが出た…") +
+        "（Supabase のメール確認設定も確認してみてね）";
+      return;
+    }
+
+    // ここまで来たら session があるはずなので getUser が通る
     try {
-      // 2️⃣ プロフィール upsert
       await upsertProfile({
-        display_name: name,
+        name,
         handle,
-        avatar_emoji: avatar,
+        avatar,
       });
 
       await refreshCurrentUser();
@@ -578,8 +598,16 @@ function setupEvents() {
       console.error("register upsertProfile error:", e);
       registerError.textContent = "プロフィール保存でエラー出た…";
     }
-  });
-}
+  } catch (err) {
+    console.error("register exception:", err);
+    registerError.textContent =
+      err.message || "予期せぬエラーが発生しちゃった…";
+  } finally {
+    registerSubmitBtn.disabled = false;
+    registerSubmitBtn.textContent = "アカウント作成";
+  }
+});
+
 
 // ==============================
 // 初期化
