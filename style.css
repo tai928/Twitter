@@ -12,6 +12,7 @@ body {
 .app {
   display: flex;
   min-height: 100vh;
+  justify-content: center; /* 🌟中央寄せの決定打 */
 }
 
 /* ===========================
@@ -31,15 +32,16 @@ body {
    左サイドバー
 =========================== */
 .sidebar-left {
-  width: 240px;
-  background: var(--bg-white);
-  border-right: 1px solid var(--line);
-  padding: 20px 15px;
-  display: flex;
-  flex-direction: column;
   position: fixed;
-  height: 100vh;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 220px;
+  padding: 20px;
+  background: #f5f5f5;
+  border-right: 1px solid #ddd;
 }
+
 
 .logo {
   font-size: 22px;
@@ -146,11 +148,12 @@ body {
 
 /* タイムライン */
 .timeline {
-  margin-left: 240px;            /* サイドバー分ずらす */
-  padding: 20px 32px;            /* 左右の余白 */
-  width: calc(100% - 240px);     /* 残り全部使う */
-  max-width: 1000px;             /* でかい画面でも最大幅だけ制限 */
+  width: 600px;
+  max-width: 100%;
+  margin-left: 240px; /* サイドバー幅分ずらす */
+  padding: 20px;
 }
+
 
 /* 投稿カードの幅がヘッダーと揃いやすくなるように */
 .new-post-card {
@@ -176,6 +179,10 @@ body {
   border-bottom: 1px solid var(--line);
   padding: 10px 20px;
   background: var(--bg-white);
+}
+
+main.timeline {
+  margin-left: 260px; /* サイドバー分のスペース */
 }
 
 /* ===========================
