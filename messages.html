@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>StepLink - ホーム</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- サイドバー（profile.html と完全に同じにしてね） -->
+    <aside class="sidebar-left">
+      <div class="logo">StepLink</div>
+
+      <nav class="nav">
+        <a href="index.html" class="nav-item active">ホーム</a>
+        <a href="messages.html" class="nav-item">メッセージ</a>
+        <a href="profile.html" class="nav-item">プロフィール</a>
+      </nav>
+
+      <!-- テーマボタンは見た目だけの飾りでもOK -->
+
+    <!-- タイムライン -->
+    <main class="timeline">
+      <header class="timeline-header">
+        <h1>ホーム</h1>
+      </header>
+
+<h2>何もないんだなこれが。</h2>
+    
+
+  <!-- アカウントモーダル（profile.html と同じ） -->
+  <div id="accountModal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <header class="modal-header">
+        <button id="closeAccountModalBtn" class="icon-btn">✕</button>
+      </header>
+
+      <div class="modal-body account-modal-body">
+        <div class="account-tabs">
+          <button class="account-tab active" data-mode="login">ログイン</button>
+          <button class="account-tab" data-mode="register">新規登録</button>
+        </div>
+
+        <!-- ログイン -->
+        <div id="accountLoginView">
+          <label>メール<input id="loginHandleInput" type="email"></label>
+          <label>パスワード<input id="loginPasswordInput" type="password"></label>
+          <button class="primary" id="loginSubmitBtn">ログイン</button>
+          <div id="loginError" class="account-error"></div>
+        </div>
+
+        <!-- 新規登録 -->
+        <div id="accountRegisterView" class="hidden">
+          <label>名前<input id="regNameInput" type="text"></label>
+          <label>ハンドル（@なし）<input id="regHandleInput" type="text"></label>
+          <label>メール<input id="regEmailInput" type="email"></label>
+          <label>絵文字<input id="regAvatarInput" type="text" placeholder="🧑‍💻"></label>
+          <label>パスワード<input id="regPasswordInput" type="password"></label>
+          <button class="primary" id="registerSubmitBtn">アカウント作成</button>
+          <div id="registerError" class="account-error"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Supabase → script.js の順番で読み込み -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="script.js"></script>
+</body>
+</html>
