@@ -448,7 +448,7 @@ textarea {
   /* 全体：PCでは横に広いコンテナを中央寄せ */
   .app {
     display: block;   /* サイドバーは position:fixed なのでここは block でOK */
-    max-width: 1200px;
+    max-width: 1920px;
     margin: 0 auto;
     min-height: 100vh;
   }
