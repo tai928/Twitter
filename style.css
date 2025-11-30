@@ -267,7 +267,10 @@ textarea {
   border-bottom: 1px solid var(--line);
   display: flex;
   gap: 12px;
+  max-width: 100%;
+  word-break: break-word;
 }
+
 .post-avatar {
   font-size: 32px;
 }
@@ -285,6 +288,11 @@ textarea {
 .post-text {
   margin-top: 6px;
   font-size: 15px;
+
+  /* ← 長文を枠内でちゃんと改行する魔法 */
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 /* ===========================
