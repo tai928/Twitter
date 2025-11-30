@@ -2,7 +2,7 @@
 // Supabase 初期化
 // ==============================
 
-// ★ここ、自分のプロジェクトに書き換えてね
+// ★ここは自分の Supabase に合わせてね（今まで使ってたやつそのまま）
 const SUPABASE_URL = "https://ngtthuwmqdcxgddlbsyo.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_YJzguO8nmmVKURa58cKwVw__9ulKxI6";
 
@@ -14,19 +14,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ------------------------------
   let currentUser = null;
   let currentProfile = null;
+  let replyTargetId = null; // 返信先ツイートID
 
-  // 投稿リストのDOM（あれば）
-  const tweetsContainer = document.getElementById("tweetsContainer");
-
-  // =====================================
-  // 🌙（見た目だけ）テーマ切り替え
-  // =====================================
+  // ------------------------------
+  // よく使う要素参照
+  // ------------------------------
+  const tweetsContainer = document.getElementById("tweetsContainer");          // ホームのタイムライン
+  const profileTweetsContainer = document.getElementById("profileTweetsContainer"); // プロフィール用
   const themeToggleBtn = document.getElementById("themeToggle");
+
+  // ==============================
+  // 🌙 テーマ切り替え（おまけ）
+  // ==============================
   const savedTheme = localStorage.getItem("steplink-theme");
   if (savedTheme === "light" || savedTheme === "dark") {
     document.body.setAttribute("data-theme", savedTheme);
   }
-
   if (themeToggleBtn) {
     themeToggleBtn.addEventListener("click", () => {
       const now = document.body.getAttribute("data-theme") || "light";
@@ -36,9 +39,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // =====================================
-  // 👤 ログイン状態の初期チェック
-  // =====================================
+  // ==============================
+  // 👤 認証状態ロード
+  // ==============================
   async function loadAuthState() {
     const { data, error } = await supabaseClient.auth.getUser();
     if (error) {
@@ -68,9 +71,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     applyUserUI(currentUser, currentProfile);
   }
 
-  // =====================================
-  // 👤 ログイン情報をUIに反映
-  // =====================================
+  // ==============================
+  // 👤 UI にユーザー情報反映
+  // ==============================
   function applyUserUI(user, profile) {
     const nameEl = document.getElementById("currentUserName");
     const handleEl = document.getElementById("currentUserHandle");
@@ -91,12 +94,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    const name =
-      profile?.name || user.user_metadata?.name || "StepLinkユーザー";
-    const handle =
-      profile?.handle || user.user_metadata?.handle || "user";
-    const avatar =
-      profile?.avatar || user.user_metadata?.avatar || "🧑‍💻";
+    const name = profile?.name || user.user_metadata?.name || "StepLinkユーザー";
+    const handle = profile?.handle || user.user_metadata?.handle || "user";
+    const avatar = profile?.avatar || user.user_metadata?.avatar || "🧑‍💻";
     const bio = profile?.bio || "プロフィールはまだ書かれていません";
 
     if (nameEl) nameEl.textContent = name;
@@ -110,14 +110,40 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   await loadAuthState();
 
-  // =====================================
-  // 🐦 tweets テーブルから読み込み
-  // =====================================
-  function renderTweet(row) {
-    if (!tweetsContainer) return;
+  // ==============================
+  // 🕒 日付フォーマット
+  // ==============================
+  function formatTime(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mi = String(d.getMinutes()).padStart(2, "0");
+    return `${mm}/${dd} ${hh}:${mi}`;
+  }
 
+  // ==============================
+  // 🐦 tweets の読み込み＆表示（返信対応）
+  // ==============================
+  async function fetchAllTweets() {
+    const { data, error } = await supabaseClient
+      .from("tweets")
+      .select("*")
+      .order("created_at", { ascending: true }); // 古い順 → スレッドが自然
+
+    if (error) {
+      console.error("tweets load error:", error);
+      return [];
+    }
+    return data || [];
+  }
+
+  function renderTweet(row, replies, container) {
     const article = document.createElement("article");
     article.className = "post";
+    article.dataset.tweetId = row.id;
+
     article.innerHTML = `
       <div class="post-avatar">${row.avatar}</div>
       <div class="post-body">
@@ -127,47 +153,295 @@ document.addEventListener("DOMContentLoaded", async () => {
           <span class="post-time">${formatTime(row.created_at)}</span>
         </div>
         <div class="post-text"></div>
+
+        <button class="reply-btn" data-tweet-id="${row.id}">返信</button>
+
+        <div class="replies"></div>
       </div>
     `;
+
     article.querySelector(".post-text").textContent = row.content;
-    tweetsContainer.appendChild(article);
+
+    const repliesContainer = article.querySelector(".replies");
+    replies.forEach((rep) => {
+      const repEl = document.createElement("div");
+      repEl.className = "reply-item";
+      repEl.innerHTML = `
+        <span class="reply-avatar">${rep.avatar}</span>
+        <div class="reply-body-wrap">
+          <div class="reply-header">
+            <span class="post-name">${rep.name}</span>
+            <span class="post-handle">@${rep.handle}</span>
+            <span class="post-time">${formatTime(rep.created_at)}</span>
+          </div>
+          <div class="reply-body-text">${rep.content}</div>
+        </div>
+      `;
+      repliesContainer.appendChild(repEl);
+    });
+
+    container.appendChild(article);
   }
 
-  function formatTime(iso) {
-    if (!iso) return "";
-    const d = new Date(iso);
-    return `${d.getMonth() + 1}/${d.getDate()} ${String(
-      d.getHours()
-    ).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  }
-
-  async function loadTweetsFromDB() {
+  // ホームタイムライン
+  async function loadHomeTimeline() {
     if (!tweetsContainer) return;
-    const { data, error } = await supabaseClient
-      .from("tweets")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(50);
+    const rows = await fetchAllTweets();
 
-    if (error) {
-      console.error("tweets load error:", error);
+    const parents = rows.filter((t) => !t.parent_id);
+    const replies = rows.filter((t) => t.parent_id);
+
+    const repliesMap = new Map(); // parent_id -> [replies]
+    replies.forEach((rep) => {
+      if (!repliesMap.has(rep.parent_id)) repliesMap.set(rep.parent_id, []);
+      repliesMap.get(rep.parent_id).push(rep);
+    });
+
+    tweetsContainer.innerHTML = "";
+    parents
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)) // 新しい親ツイを上に
+      .forEach((parent) => {
+        const reps = repliesMap.get(parent.id) || [];
+        renderTweet(parent, reps, tweetsContainer);
+      });
+  }
+
+  // プロフィールタイムライン（自分のツイートだけ）
+  async function loadProfileTimeline() {
+    if (!profileTweetsContainer || !currentUser) return;
+    const rows = await fetchAllTweets();
+
+    const parents = rows.filter(
+      (t) => !t.parent_id && t.user_id === currentUser.id
+    );
+    const replies = rows.filter((t) => t.parent_id);
+
+    const repliesMap = new Map();
+    replies.forEach((rep) => {
+      if (!repliesMap.has(rep.parent_id)) repliesMap.set(rep.parent_id, []);
+      repliesMap.get(rep.parent_id).push(rep);
+    });
+
+    profileTweetsContainer.innerHTML = "";
+    parents
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .forEach((parent) => {
+        const reps = repliesMap.get(parent.id) || [];
+        renderTweet(parent, reps, profileTweetsContainer);
+      });
+  }
+
+  async function reloadTimelines() {
+    await loadHomeTimeline();
+    await loadProfileTimeline();
+  }
+
+  // 初期ロード
+  await reloadTimelines();
+
+  // ==============================
+  // ✏️ 文字数カウンター
+  // ==============================
+  function updateCounter(input, counter) {
+    if (!input || !counter) return;
+    counter.textContent = `${input.value.length} / 140`;
+  }
+
+  const tweetInput = document.getElementById("tweetInput");
+  const charCounter = document.getElementById("charCounter");
+  const tweetInputModal = document.getElementById("tweetInputModal");
+  const charCounterModal = document.getElementById("charCounterModal");
+
+  if (tweetInput && charCounter) {
+    updateCounter(tweetInput, charCounter);
+    tweetInput.addEventListener("input", () =>
+      updateCounter(tweetInput, charCounter)
+    );
+  }
+  if (tweetInputModal && charCounterModal) {
+    updateCounter(tweetInputModal, charCounterModal);
+    tweetInputModal.addEventListener("input", () =>
+      updateCounter(tweetInputModal, charCounterModal)
+    );
+  }
+
+  // ==============================
+  // 🖼 画像プレビュー（ローカルのみ）
+  // ==============================
+  function setupImagePicker(selectBtn, fileInput, preview) {
+    if (!selectBtn || !fileInput || !preview) return;
+    selectBtn.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        preview.innerHTML = "";
+        const img = document.createElement("img");
+        img.src = e.target.result;
+        preview.appendChild(img);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  setupImagePicker(
+    document.getElementById("imageSelectBtn"),
+    document.getElementById("imageInput"),
+    document.getElementById("imagePreview")
+  );
+  setupImagePicker(
+    document.getElementById("imageSelectBtnModal"),
+    document.getElementById("imageInputModal"),
+    document.getElementById("imagePreviewModal")
+  );
+
+  // ==============================
+  // 🐦 ツイート作成（通常 & 返信共通）
+  // ==============================
+  async function createTweet(text, parentId = null) {
+    if (!currentUser) {
+      alert("ログインしてから投稿してね🥺");
       return;
     }
 
-    tweetsContainer.innerHTML = "";
-    data.forEach(renderTweet);
+    const name =
+      currentProfile?.name || currentUser.user_metadata?.name || "StepLinkユーザー";
+    const handle =
+      currentProfile?.handle || currentUser.user_metadata?.handle || "user";
+    const avatar =
+      currentProfile?.avatar || currentUser.user_metadata?.avatar || "🧑‍💻";
+
+    const { error } = await supabaseClient.from("tweets").insert({
+      user_id: currentUser.id,
+      name,
+      handle,
+      avatar,
+      content: text,
+      parent_id: parentId,
+    });
+
+    if (error) {
+      console.error("tweet insert error:", error);
+      alert("投稿に失敗しちゃった…😭 コンソール見て！");
+      return;
+    }
+
+    await reloadTimelines();
   }
 
-  // タイムラインがあるページだけ読み込み
-  if (tweetsContainer) {
-    await loadTweetsFromDB();
+  async function handlePostFrom(input, counter, preview) {
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text) return;
+    if (text.length > 140) {
+      alert("140文字までだよ🥺");
+      return;
+    }
+
+    await createTweet(text, null);
+    input.value = "";
+    if (counter) updateCounter(input, counter);
+    if (preview) preview.innerHTML = "";
   }
 
-  // =====================================
-  // 🧾 アカウントモーダル開閉
-  // =====================================
+  const postTweetBtn = document.getElementById("postTweetBtn");
+  const imagePreview = document.getElementById("imagePreview");
+  if (postTweetBtn && tweetInput) {
+    postTweetBtn.addEventListener("click", () =>
+      handlePostFrom(tweetInput, charCounter, imagePreview)
+    );
+  }
+
+  const postTweetBtnModal = document.getElementById("postTweetBtnModal");
+  const imagePreviewModal = document.getElementById("imagePreviewModal");
+  if (postTweetBtnModal && tweetInputModal) {
+    postTweetBtnModal.addEventListener("click", () =>
+      handlePostFrom(tweetInputModal, charCounterModal, imagePreviewModal)
+    );
+  }
+
+  // ==============================
+  // 📝 投稿モーダル開閉
+  // ==============================
+  const tweetModal = document.getElementById("tweetModal");
+  const openModalBtn = document.getElementById("openModalBtn");
+  const closeModalBtn = document.getElementById("closeModalBtn");
+  const tweetModalBackdrop = tweetModal?.querySelector(".modal-backdrop");
+
+  function openTweetModal() {
+    if (tweetModal) tweetModal.classList.remove("hidden");
+  }
+  function closeTweetModal() {
+    if (tweetModal) tweetModal.classList.add("hidden");
+  }
+
+  if (openModalBtn && tweetModal) {
+    openModalBtn.addEventListener("click", openTweetModal);
+  }
+  if (closeModalBtn) {
+    closeModalBtn.addEventListener("click", closeTweetModal);
+  }
+  if (tweetModalBackdrop) {
+    tweetModalBackdrop.addEventListener("click", closeTweetModal);
+  }
+
+  // ==============================
+  // 💬 返信モーダル
+  // ==============================
+  const replyModal = document.getElementById("replyModal");
+  const closeReplyModalBtn = document.getElementById("closeReplyModal");
+  const replyInput = document.getElementById("replyInput");
+  const sendReplyBtn = document.getElementById("sendReplyBtn");
+  const replyBackdrop = replyModal?.querySelector(".modal-backdrop");
+
+  function openReplyModal(tweetId) {
+    replyTargetId = tweetId;
+    if (replyInput) replyInput.value = "";
+    if (replyModal) replyModal.classList.remove("hidden");
+  }
+
+  function closeReplyModal() {
+    if (replyModal) replyModal.classList.add("hidden");
+    replyTargetId = null;
+  }
+
+  if (closeReplyModalBtn) {
+    closeReplyModalBtn.addEventListener("click", closeReplyModal);
+  }
+  if (replyBackdrop) {
+    replyBackdrop.addEventListener("click", closeReplyModal);
+  }
+
+  if (sendReplyBtn && replyInput) {
+    sendReplyBtn.addEventListener("click", async () => {
+      if (!replyTargetId) return;
+      const text = replyInput.value.trim();
+      if (!text) return;
+      if (text.length > 140) {
+        alert("140文字までだよ🥺");
+        return;
+      }
+      await createTweet(text, replyTargetId);
+      closeReplyModal();
+    });
+  }
+
+  // 各ツイート内の「返信」ボタン（イベント委譲）
+  document.addEventListener("click", (e) => {
+    const target = e.target;
+    if (target && target.classList.contains("reply-btn")) {
+      const id = target.dataset.tweetId;
+      if (id) openReplyModal(id);
+    }
+  });
+
+  // ==============================
+  // 👥 アカウントモーダル
+  // ==============================
   const accountModal = document.getElementById("accountModal");
   const switchAccountBtn = document.getElementById("switchAccountBtn");
+  const bottomAccountBtn = document.getElementById("bottomAccountBtn");
   const closeAccountModalBtn = document.getElementById("closeAccountModalBtn");
   const accountBackdrop = accountModal?.querySelector(".modal-backdrop");
 
@@ -178,8 +452,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (accountModal) accountModal.classList.add("hidden");
   }
 
-  if (switchAccountBtn && accountModal) {
+  if (switchAccountBtn) {
     switchAccountBtn.addEventListener("click", openAccountModal);
+  }
+  if (bottomAccountBtn) {
+    bottomAccountBtn.addEventListener("click", openAccountModal);
   }
   if (closeAccountModalBtn) {
     closeAccountModalBtn.addEventListener("click", closeAccountModal);
@@ -187,14 +464,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (accountBackdrop) {
     accountBackdrop.addEventListener("click", closeAccountModal);
   }
-  const bottomAccountBtn = document.getElementById("bottomAccountBtn");
-  if (bottomAccountBtn && accountModal) {
-    bottomAccountBtn.addEventListener("click", openAccountModal);
-  }
 
-  // =====================================
-  // 🔁 アカウントタブ切り替え（ログイン / 新規登録）
-  // =====================================
+  // アカウントタブ切り替え
   const accountTabs = document.querySelectorAll(".account-tab");
   const accountLoginView = document.getElementById("accountLoginView");
   const accountRegisterView = document.getElementById("accountRegisterView");
@@ -219,9 +490,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     tab.addEventListener("click", () => switchAccountTab(tab.dataset.mode));
   });
 
-  // =====================================
-  // 🆕 新規登録（signUp + profiles保存）
-  // =====================================
+  // ==============================
+  // 🆕 新規登録
+  // ==============================
   const regNameInput = document.getElementById("regNameInput");
   const regHandleInput = document.getElementById("regHandleInput");
   const regEmailInput = document.getElementById("regEmailInput");
@@ -270,7 +541,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const user = data.user;
     if (user) {
-      // profiles にも保存
       const { error: profileErr } = await supabaseClient
         .from("profiles")
         .upsert({
@@ -293,9 +563,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     registerSubmitBtn.addEventListener("click", handleRegister);
   }
 
-  // =====================================
+  // ==============================
   // 🔐 ログイン
-  // =====================================
+  // ==============================
   const loginHandleInput = document.getElementById("loginHandleInput");
   const loginPasswordInput = document.getElementById("loginPasswordInput");
   const loginError = document.getElementById("loginError");
@@ -325,7 +595,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    // ログイン成功 → 状態を更新したいのでリロード
     location.reload();
   }
 
@@ -333,187 +602,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     loginSubmitBtn.addEventListener("click", handleLogin);
   }
 
-  // =====================================
-  // 🚪 ログアウト（左下の名前をダブルクリック）
-  // =====================================
-  const currentUserNameEl = document.getElementById("currentUserName");
-  if (currentUserNameEl) {
-    currentUserNameEl.addEventListener("dblclick", async () => {
+  // ==============================
+  // 🚪 ログアウト
+  // ==============================
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async () => {
       await supabaseClient.auth.signOut();
       location.reload();
     });
   }
-  // ⭐ ログアウトボタン
-const logoutBtn = document.getElementById("logoutBtn");
-if (logoutBtn) {
-  logoutBtn.addEventListener("click", async () => {
-    await supabaseClient.auth.signOut();
-    location.reload();
-  });
-}
-
-
-  // =====================================
-  // ✏️ 文字数カウンター
-  // =====================================
-  function updateCounter(input, counter) {
-    if (!input || !counter) return;
-    counter.textContent = `${input.value.length} / 140`;
-  }
-
-  // =====================================
-  // 📝 ホーム投稿（DBに保存）
-  // =====================================
-  const tweetInput = document.getElementById("tweetInput");
-  const charCounter = document.getElementById("charCounter");
-  const imageSelectBtn = document.getElementById("imageSelectBtn");
-  const imageInput = document.getElementById("imageInput");
-  const imagePreview = document.getElementById("imagePreview");
-  const postTweetBtn = document.getElementById("postTweetBtn");
-
-  if (tweetInput && charCounter) {
-    updateCounter(tweetInput, charCounter);
-    tweetInput.addEventListener("input", () =>
-      updateCounter(tweetInput, charCounter)
-    );
-  }
-
-  if (imageSelectBtn && imageInput && imagePreview) {
-    imageSelectBtn.addEventListener("click", () => imageInput.click());
-    imageInput.addEventListener("change", () => {
-      const file = imageInput.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        imagePreview.innerHTML = "";
-        const img = document.createElement("img");
-        img.src = e.target.result;
-        imagePreview.appendChild(img);
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-
-  async function createTweet(text) {
-    if (!currentUser) {
-      alert("ログインしてから投稿してね🥺");
-      return;
-    }
-
-    const name =
-      currentProfile?.name ||
-      currentUser.user_metadata?.name ||
-      "StepLinkユーザー";
-    const handle =
-      currentProfile?.handle ||
-      currentUser.user_metadata?.handle ||
-      "user";
-    const avatar =
-      currentProfile?.avatar ||
-      currentUser.user_metadata?.avatar ||
-      "🧑‍💻";
-
-    const { error } = await supabaseClient.from("tweets").insert({
-      user_id: currentUser.id,
-      name,
-      handle,
-      avatar,
-      content: text,
-    });
-
-    if (error) {
-      console.error("tweet insert error:", error);
-      alert("投稿に失敗しちゃった…😭 コンソール見て！");
-      return;
-    }
-
-    // 再読み込み
-    await loadTweetsFromDB();
-  }
-
-  async function handlePostFrom(input, counter, preview) {
-    if (!input) return;
-    const text = input.value.trim();
-    if (!text) return;
-    if (text.length > 140) {
-      alert("140文字までだよ🥺");
-      return;
-    }
-
-    await createTweet(text);
-
-    input.value = "";
-    if (counter) updateCounter(input, counter);
-    if (preview) preview.innerHTML = "";
-  }
-
-  if (postTweetBtn && tweetInput) {
-    postTweetBtn.addEventListener("click", () =>
-      handlePostFrom(tweetInput, charCounter, imagePreview)
-    );
-  }
-
-  // =====================================
-  // 📝 モーダルからの投稿（これだけ残せばOK）
-  // =====================================
-  const tweetModal = document.getElementById("tweetModal");
-  const openModalBtn = document.getElementById("openModalBtn");
-  const closeModalBtn = document.getElementById("closeModalBtn");
-  const tweetModalBackdrop = tweetModal?.querySelector(".modal-backdrop");
-  
-  const tweetInputModal = document.getElementById("tweetInputModal");
-  const charCounterModal = document.getElementById("charCounterModal");
-  const imageSelectBtnModal = document.getElementById("imageSelectBtnModal");
-  const imageInputModal = document.getElementById("imageInputModal");
-  const imagePreviewModal = document.getElementById("imagePreviewModal");
-  const postTweetBtnModal = document.getElementById("postTweetBtnModal");
-  
-  function openTweetModal() {
-    tweetModal.classList.remove("hidden");
-  }
-  function closeTweetModal() {
-    tweetModal.classList.add("hidden");
-  }
-  
-  if (openModalBtn) {
-    openModalBtn.addEventListener("click", openTweetModal);
-  }
-  if (closeModalBtn) {
-    closeModalBtn.addEventListener("click", closeTweetModal);
-  }
-  if (tweetModalBackdrop) {
-    tweetModalBackdrop.addEventListener("click", closeTweetModal);
-  }
-  
-  if (tweetInputModal && charCounterModal) {
-    updateCounter(tweetInputModal, charCounterModal);
-    tweetInputModal.addEventListener("input", () =>
-      updateCounter(tweetInputModal, charCounterModal)
-    );
-  }
-  
-  if (imageSelectBtnModal && imageInputModal && imagePreviewModal) {
-    imageSelectBtnModal.addEventListener("click", () =>
-      imageInputModal.click()
-    );
-    imageInputModal.addEventListener("change", () => {
-      const file = imageInputModal.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        imagePreviewModal.innerHTML = "";
-        const img = document.createElement("img");
-        img.src = e.target.result;
-        imagePreviewModal.appendChild(img);
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-  
-  if (postTweetBtnModal && tweetInputModal) {
-    postTweetBtnModal.addEventListener("click", () =>
-      handlePostFrom(tweetInputModal, charCounterModal, imagePreviewModal)
-    );
-  }
 });
-
