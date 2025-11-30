@@ -2,23 +2,17 @@
 // Supabase 初期化
 // ==============================
 
-// ★自分の Supabase プロジェクトの値に合わせてね
+// ★自分の Supabase プロジェクトの値（今のをそのまま使ってる）
 const SUPABASE_URL = "https://ngtthuwmqdcxgddlbsyo.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_YJzguO8nmmVKURa58cKwVw__9ulKxI6";
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 document.addEventListener("DOMContentLoaded", async () => {
-  // ------------------------------
-  // 共通状態
-  // ------------------------------
   let currentUser = null;
   let currentProfile = null;
-  let replyTargetId = null; // 返信先ツイートの id
+  let replyTargetId = null;
 
-  // ------------------------------
-  // よく使う DOM を取る
-  // ------------------------------
   const tweetsContainer = document.getElementById("tweetsContainer");
   const profileTweetsContainer = document.getElementById(
     "profileTweetsContainer"
@@ -26,7 +20,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const themeToggleBtn = document.getElementById("themeToggle");
 
   // ==============================
-  // 🌙 テーマ切り替え（おまけ）
+  // 🌙 テーマ切り替え
   // ==============================
   (function setupTheme() {
     const savedTheme = localStorage.getItem("steplink-theme");
@@ -44,7 +38,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   })();
 
   // ==============================
-  // 👤 認証状態＆プロフィール読み込み
+  // 👤 認証状態＆プロフィール
   // ==============================
   async function loadAuthState() {
     const { data, error } = await supabaseClient.auth.getUser();
@@ -84,6 +78,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const profileBioEl = document.querySelector(".profile-bio");
     const profileAvatarEl = document.getElementById("profileAvatar");
 
+    // ★ 投稿カードのアイコン
+    const composerAvatarEl = document.getElementById("composerAvatar");
+
     if (!user) {
       if (nameEl) nameEl.textContent = "未ログイン";
       if (handleEl) handleEl.textContent = "";
@@ -93,6 +90,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (profileHandleEl) profileHandleEl.textContent = "@user";
       if (profileBioEl) profileBioEl.textContent = "プロフィール準備中";
       if (profileAvatarEl) profileAvatarEl.textContent = "🧑‍💻";
+      if (composerAvatarEl) composerAvatarEl.textContent = "🧑‍💻";
+
       return;
     }
 
@@ -110,6 +109,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (profileHandleEl) profileHandleEl.textContent = "@" + handle;
     if (profileBioEl) profileBioEl.textContent = bio;
     if (profileAvatarEl) profileAvatarEl.textContent = avatar;
+
+    if (composerAvatarEl) composerAvatarEl.textContent = avatar;
   }
 
   await loadAuthState();
@@ -128,13 +129,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ==============================
-  // 🐦 tweets 読み込み（返信対応）
+  // 🐦 tweets 読み込み（返信込み）
   // ==============================
   async function fetchAllTweets() {
     const { data, error } = await supabaseClient
       .from("tweets")
       .select("*")
-      .order("created_at", { ascending: true }); // 古い順に取得
+      .order("created_at", { ascending: true });
 
     if (error) {
       console.error("tweets load error:", error);
@@ -203,7 +204,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     tweetsContainer.innerHTML = "";
     parents
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)) // 親ツイートは新しい順
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
       .forEach((parent) => {
         const reps = repliesMap.get(parent.id) || [];
         renderTweet(parent, reps, tweetsContainer);
@@ -268,7 +269,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ==============================
-  // 🖼 画像プレビュー（ローカルのみ）
+  // 🖼 画像プレビュー
   // ==============================
   function setupImagePicker(selectBtn, fileInput, preview) {
     if (!selectBtn || !fileInput || !preview) return;
@@ -299,7 +300,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   );
 
   // ==============================
-  // 🐦 ツイート作成（通常＋返信共通）
+  // 🐦 ツイート作成（通常＋返信）
   // ==============================
   async function createTweet(text, parentId = null) {
     if (!currentUser) {
@@ -308,11 +309,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const name =
-      currentProfile?.name || currentUser.user_metadata?.name || "StepLinkユーザー";
+      currentProfile?.name ||
+      currentUser.user_metadata?.name ||
+      "StepLinkユーザー";
     const handle =
-      currentProfile?.handle || currentUser.user_metadata?.handle || "user";
+      currentProfile?.handle ||
+      currentUser.user_metadata?.handle ||
+      "user";
     const avatar =
-      currentProfile?.avatar || currentUser.user_metadata?.avatar || "🧑‍💻";
+      currentProfile?.avatar ||
+      currentUser.user_metadata?.avatar ||
+      "🧑‍💻";
 
     const { error } = await supabaseClient.from("tweets").insert({
       user_id: currentUser.id,
@@ -364,7 +371,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ==============================
-  // 📝 投稿モーダル開閉
+  // 投稿モーダル
   // ==============================
   const tweetModal = document.getElementById("tweetModal");
   const openModalBtn = document.getElementById("openModalBtn");
@@ -429,7 +436,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // 各ツイート内の「返信」ボタン（イベント委譲）
+  // 返信ボタン（イベント委譲）
   document.addEventListener("click", (e) => {
     const target = e.target;
     if (target && target.classList.contains("reply-btn")) {
@@ -439,7 +446,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   // ==============================
-  // 👥 アカウントモーダル
+  // アカウントモーダル
   // ==============================
   const accountModal = document.getElementById("accountModal");
   const switchAccountBtn = document.getElementById("switchAccountBtn");
@@ -493,7 +500,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   // ==============================
-  // 🆕 新規登録
+  // 新規登録
   // ==============================
   const regNameInput = document.getElementById("regNameInput");
   const regHandleInput = document.getElementById("regHandleInput");
@@ -532,7 +539,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       console.error("signUp error:", error);
       if (registerError) {
         if (error.message.includes("User already registered")) {
-          registerError.textContent = "このメールは登録済みだよ。ログインしてね。";
+          registerError.textContent =
+            "このメールは登録済みだよ。ログインしてね。";
           switchAccountTab("login");
         } else {
           registerError.textContent = error.message;
@@ -566,7 +574,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ==============================
-  // 🔐 ログイン
+  // ログイン
   // ==============================
   const loginHandleInput = document.getElementById("loginHandleInput");
   const loginPasswordInput = document.getElementById("loginPasswordInput");
@@ -605,7 +613,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ==============================
-  // 🚪 ログアウト
+  // ログアウト
   // ==============================
   const logoutBtn = document.getElementById("logoutBtn");
   if (logoutBtn) {
