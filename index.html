@@ -49,7 +49,8 @@
 
       <!-- 新規投稿カード -->
       <section class="new-post-card">
-        <div class="avatar">🧑‍💻</div>
+        <!-- ★ ここがプロフィール絵文字と連動する -->
+        <div class="avatar" id="composerAvatar">🧑‍💻</div>
         <div class="new-post-body">
           <textarea
             id="tweetInput"
@@ -73,7 +74,7 @@
       <!-- タイムライン投稿一覧 -->
       <section id="tweetsContainer" class="posts"></section>
 
-      <!-- （オプション）自分の投稿プレビュー用プロフィールタイムライン -->
+      <!-- 自分のプロフィール表示 -->
       <section class="profile-header">
         <div class="profile-banner"></div>
 
