@@ -2,13 +2,15 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>StepLink</title>
+  <title>StepLink - メッセージ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div class="app">
-    <!-- サイドバー（index / profile と同じ構成にする） -->
+
+    <!-- 左サイドバー -->
     <aside class="sidebar-left">
       <div class="logo">StepLink</div>
 
@@ -18,11 +20,7 @@
         <a href="profile.html" class="nav-item">プロフィール</a>
       </nav>
 
-      <!-- テーマ切り替え（見た目だけでもOK） -->
-
-
-      <!-- 投稿モーダルを開くボタン（ホーム以外からも投稿できるように） -->
-      <button class="post-button" id="openModalBtn">投稿する</button>
+      <button id="themeToggle" class="icon-btn theme-toggle">🌙</button>
 
       <div class="account-summary">
         <div class="account-main">
@@ -33,77 +31,23 @@
           </div>
         </div>
         <button class="icon-btn small" id="switchAccountBtn">アカウント</button>
+        <button class="logout-button" id="logoutBtn">ログアウト</button>
       </div>
-
-      <!-- ログアウトボタン（作ってなかったら消してもOK / script.js 側はnullチェック済） -->
-      <button class="logout-button" id="logoutBtn">ログアウト</button>
     </aside>
 
-    <!-- メッセージページ本体 -->
+    <!-- メッセージ本体 -->
     <main class="timeline">
       <header class="timeline-header">
         <h1>メッセージ</h1>
       </header>
 
-      <!-- ここはあとでDM機能実装するときに差し替える想定 -->
-      <section class="new-post-card">
-        <div class="avatar">💬</div>
-        <div class="new-post-body">
-          <p>ダイレクトメッセージ機能は準備中です。</p>
-          <p style="color:#777; font-size:14px; margin-top:6px;">
-            まずはホームで投稿して、メッセージ機能はあとで一緒に作ろうね。
-          </p>
-        </div>
-      </section>
-
-      <section class="posts">
-        <article class="post">
-          <div class="post-avatar">🤝</div>
-          <div class="post-body">
-            <div class="post-header">
-              <span class="post-name">StepLink</span>
-              <span class="post-handle">@system</span>
-              <span class="post-time">メッセージ案内</span>
-            </div>
-            <div class="post-text">
-              ここには将来、友だちとのDMスレッドやチャット履歴が並ぶ予定だよ。
-            </div>
-          </div>
-        </article>
+      <section class="placeholder">
+        <p>メッセージ機能は準備中です。</p>
       </section>
     </main>
   </div>
 
-  <!-- 投稿モーダル（index.html と同じ構造） -->
-  <div id="tweetModal" class="modal hidden">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-      <header class="modal-header">
-        <button id="closeModalBtn" class="icon-btn">✕</button>
-      </header>
-
-      <section class="new-post-card modal-body">
-        <div class="avatar">🧑‍💻</div>
-        <div class="new-post-body">
-          <textarea id="tweetInputModal" placeholder="いまどうしてる？"></textarea>
-
-          <div class="image-preview" id="imagePreviewModal"></div>
-
-          <div class="new-post-actions">
-            <div class="left-actions">
-              <button class="icon-btn" id="imageSelectBtnModal">🖼 画像</button>
-              <span class="char-counter" id="charCounterModal">0 / 140</span>
-            </div>
-            <button id="postTweetBtnModal">投稿</button>
-          </div>
-
-          <input type="file" id="imageInputModal" accept="image/*" hidden />
-        </div>
-      </section>
-    </div>
-  </div>
-
-  <!-- アカウントモーダル（index / profile と共通） -->
+  <!-- アカウントモーダル（共通） -->
   <div id="accountModal" class="modal hidden">
     <div class="modal-backdrop"></div>
     <div class="modal-content">
@@ -117,7 +61,6 @@
           <button class="account-tab" data-mode="register">新規登録</button>
         </div>
 
-        <!-- ログイン -->
         <div id="accountLoginView">
           <label>メール<input id="loginHandleInput" type="email"></label>
           <label>パスワード<input id="loginPasswordInput" type="password"></label>
@@ -125,12 +68,11 @@
           <div id="loginError" class="account-error"></div>
         </div>
 
-        <!-- 新規登録 -->
         <div id="accountRegisterView" class="hidden">
           <label>名前<input id="regNameInput" type="text"></label>
           <label>ハンドル（@なし）<input id="regHandleInput" type="text"></label>
           <label>メール<input id="regEmailInput" type="email"></label>
-          <label>絵文字<input id="regAvatarInput" type="text" placeholder="🧑‍💻"></label>
+          <label>絵文字<input id="regAvatarInput" type="text" placeholder="🎣"></label>
           <label>パスワード<input id="regPasswordInput" type="password"></label>
           <button class="primary" id="registerSubmitBtn">アカウント作成</button>
           <div id="registerError" class="account-error"></div>
@@ -139,30 +81,28 @@
     </div>
   </div>
 
-  <!-- Supabase → script.js の順で読み込み -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js"></script>
+  <!-- スマホ用ボトムナビ -->
   <nav class="bottom-nav">
     <a href="index.html" class="bottom-nav-item">
       <span class="icon">🏠</span>
-      <span class="label">ホーム</span>
+      <span>ホーム</span>
     </a>
     <a href="messages.html" class="bottom-nav-item active">
       <span class="icon">💬</span>
-      <span class="label">メッセージ</span>
+      <span>メッセージ</span>
     </a>
     <a href="profile.html" class="bottom-nav-item">
       <span class="icon">👤</span>
-      <span class="label">プロフィール</span>
+      <span>プロフィール</span>
     </a>
-    <button type="button" class="bottom-nav-item" id="bottomAccountBtn">
-      <span class="icon">⚙️</span>
-      <span class="label">アカウント</span>
+
+    <!-- スマホ用アカウント -->
+    <button type="button" class="bottom-nav-item" id="switchAccountBtnMobile">
+      <span class="icon">🔑</span>
+      <span>アカウント</span>
     </button>
   </nav>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="script.js"></script>
 </body>
 </html>
-
