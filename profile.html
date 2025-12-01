@@ -2,27 +2,24 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>StepLink - プロフィール</title>
+  <title>StepLink</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div class="app">
-
-    <!-- ==========================
-         左サイドバー（PC）
-    ============================ -->
+    <!-- 左サイドバー -->
     <aside class="sidebar-left">
       <div class="logo">StepLink</div>
 
       <nav class="nav">
         <a href="index.html" class="nav-item">ホーム</a>
         <a href="messages.html" class="nav-item">メッセージ</a>
+        <a href="notifications.html" class="nav-item">通知</a>
         <a href="profile.html" class="nav-item active">プロフィール</a>
       </nav>
 
-      <button id="themeToggle" class="icon-btn theme-toggle">🌙</button>
       <button class="post-button" id="openModalBtn">投稿する</button>
 
       <div class="account-summary">
@@ -38,73 +35,67 @@
       </div>
     </aside>
 
-    <!-- ==========================
-         プロフィール（Twitter風）
-    ============================ -->
+    <!-- プロフィール本体 -->
     <main class="timeline">
       <header class="timeline-header">
         <h1>プロフィール</h1>
       </header>
 
-      <!-- 上のバナー -->
       <div class="profile-banner"></div>
 
-      <!-- アイコン＋右上編集 -->
       <div class="profile-top">
         <div class="profile-avatar-wrapper">
           <div class="profile-avatar" id="profileAvatar">🧑‍💻</div>
         </div>
 
-        <button id="editProfileBtn" class="edit-profile-btn">
-          プロフィールを編集
-        </button>
+        <div class="profile-top-buttons">
+          <button id="dmFromProfileBtn" class="profile-icon-btn">💬 メッセージ</button>
+          <button id="editProfileBtn" class="edit-profile-btn">プロフィールを編集</button>
+        </div>
       </div>
 
-      <!-- 情報 -->
       <div class="profile-info">
         <div class="profile-name" id="profileName">ユーザー</div>
         <div class="profile-handle" id="profileHandle">@user</div>
         <div class="profile-bio" id="profileBio">Bioが未設定です</div>
       </div>
 
-      <!-- 下のタブ（今はツイートだけ） -->
       <div class="profile-tabs">
         <div class="profile-tab active">ツイート</div>
       </div>
 
-      <!-- 投稿一覧 -->
       <section id="profileTweetsContainer" class="posts"></section>
     </main>
   </div>
 
-  <!-- ==========================
-       投稿モーダル
-  ============================ -->
-  <div id="tweetModal" class="modal hidden">
+  <!-- プロフィール編集モーダル -->
+  <div id="editProfileModal" class="modal hidden">
     <div class="modal-backdrop"></div>
     <div class="modal-content">
       <header class="modal-header">
-        <button id="closeModalBtn" class="icon-btn">✕</button>
+        <button id="closeEditProfileModal" class="icon-btn">✕</button>
       </header>
 
-      <section class="modal-body">
-        <textarea id="tweetInputModal" placeholder="いまどうしてる？"></textarea>
-        <div class="image-preview" id="imagePreviewModal"></div>
+      <div class="modal-body edit-profile-body">
+        <label>名前
+          <input id="editNameInput" type="text" />
+        </label>
 
-        <div class="new-post-actions">
-          <button class="icon-btn" id="imageSelectBtnModal">🖼 画像</button>
-          <span class="char-counter" id="charCounterModal">0 / 140</span>
-          <button id="postTweetBtnModal" class="primary">投稿</button>
-        </div>
+        <label>アイコン絵文字
+          <input id="editAvatarInput" type="text" placeholder="🎣" />
+        </label>
 
-        <input type="file" id="imageInputModal" accept="image/*" hidden />
-      </section>
+        <label>自己紹介（bio）
+          <textarea id="editBioInput" rows="4"></textarea>
+        </label>
+
+        <button id="saveProfileBtn" class="primary">保存する</button>
+        <div id="editProfileError" class="account-error"></div>
+      </div>
     </div>
   </div>
 
-  <!-- ==========================
-       アカウントモーダル
-  ============================ -->
+  <!-- アカウントモーダル（共通） -->
   <div id="accountModal" class="modal hidden">
     <div class="modal-backdrop"></div>
     <div class="modal-content">
@@ -118,21 +109,19 @@
           <button class="account-tab" data-mode="register">新規登録</button>
         </div>
 
-        <!-- ログイン -->
         <div id="accountLoginView">
-          <label>メール<input id="loginHandleInput" type="email"></label>
-          <label>パスワード<input id="loginPasswordInput" type="password"></label>
+          <label>メール<input id="loginHandleInput" type="email" /></label>
+          <label>パスワード<input id="loginPasswordInput" type="password" /></label>
           <button class="primary" id="loginSubmitBtn">ログイン</button>
           <div id="loginError" class="account-error"></div>
         </div>
 
-        <!-- 新規登録 -->
         <div id="accountRegisterView" class="hidden">
-          <label>名前<input id="regNameInput" type="text"></label>
-          <label>ハンドル（@なし）<input id="regHandleInput" type="text"></label>
-          <label>メール<input id="regEmailInput" type="email"></label>
-          <label>絵文字<input id="regAvatarInput" type="text" placeholder="🎣"></label>
-          <label>パスワード<input id="regPasswordInput" type="password"></label>
+          <label>名前<input id="regNameInput" type="text" /></label>
+          <label>ハンドル（@なし）<input id="regHandleInput" type="text" /></label>
+          <label>メール<input id="regEmailInput" type="email" /></label>
+          <label>絵文字<input id="regAvatarInput" type="text" placeholder="🎣" /></label>
+          <label>パスワード<input id="regPasswordInput" type="password" /></label>
           <button class="primary" id="registerSubmitBtn">アカウント作成</button>
           <div id="registerError" class="account-error"></div>
         </div>
@@ -140,59 +129,22 @@
     </div>
   </div>
 
-  <!-- ==========================
-       プロフィール編集モーダル
-  ============================ -->
-  <div id="editProfileModal" class="modal hidden">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-      <header class="modal-header">
-        <button id="closeEditProfileModal" class="icon-btn">✕</button>
-      </header>
-
-      <div class="modal-body edit-profile-body">
-        <label>
-          名前
-          <input id="editNameInput" type="text" />
-        </label>
-
-        <label>
-          アイコン絵文字
-          <input id="editAvatarInput" type="text" placeholder="🎣" />
-        </label>
-
-        <label>
-          自己紹介（bio）
-          <textarea id="editBioInput" rows="4"></textarea>
-        </label>
-
-        <button id="saveProfileBtn" class="primary">保存する</button>
-        <div id="editProfileError" class="account-error"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ==========================
-       ボトムナビ（スマホ）
-  ============================ -->
+  <!-- ボトムナビ -->
   <nav class="bottom-nav">
     <a href="index.html" class="bottom-nav-item">
-      <span class="icon">🏠</span>
-      <span>ホーム</span>
+      <span class="icon">🏠</span><span>ホーム</span>
     </a>
     <a href="messages.html" class="bottom-nav-item">
-      <span class="icon">💬</span>
-      <span>メッセージ</span>
+      <span class="icon">💬</span><span>メッセージ</span>
+    </a>
+    <a href="notifications.html" class="bottom-nav-item">
+      <span class="icon">🔔</span><span>通知</span>
     </a>
     <a href="profile.html" class="bottom-nav-item active">
-      <span class="icon">👤</span>
-      <span>プロフィール</span>
+      <span class="icon">👤</span><span>プロフィール</span>
     </a>
-
-    <!-- ★ モバイル専用のアカウントボタン -->
     <button type="button" class="bottom-nav-item" id="switchAccountBtnMobile">
-      <span class="icon">🔑</span>
-      <span>アカウント</span>
+      <span class="icon">🔑</span><span>アカウント</span>
     </button>
   </nav>
 
