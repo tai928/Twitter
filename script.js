@@ -669,6 +669,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (profileTweetsContainer) {
     await loadProfileTimeline();
   }
+// モバイル（ボトムナビ）のアカウントボタン
+const switchAccountBtnMobile = document.getElementById("switchAccountBtnMobile");
+if (switchAccountBtnMobile && accountModal) {
+  switchAccountBtnMobile.addEventListener("click", openAccountModal);
+}
 
   // ==============================
   // 投稿モーダル開閉
