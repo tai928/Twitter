@@ -94,6 +94,29 @@
       </section>
     </div>
   </div>
+  <!-- 返信モーダル -->
+  <div id="replyModal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <header class="modal-header">
+        <button id="closeReplyModalBtn" class="icon-btn">✕</button>
+      </header>
+
+      <section class="new-post-card modal-body">
+        <div class="avatar" id="replyAvatar">🧑‍💻</div>
+        <div class="new-post-body">
+          <textarea id="replyInput" placeholder="返信を入力してね"></textarea>
+
+          <div class="new-post-actions">
+            <div class="left-actions">
+              <span class="char-counter" id="replyCounter">0 / 140</span>
+            </div>
+            <button id="replyPostBtn">返信</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
 
   <!-- ==========================
        アカウントモーダル
