@@ -1,212 +1,145 @@
 // ==============================
 // Supabase 初期化
 // ==============================
+
+// 自分の値に置き換え
 const SUPABASE_URL = "https://ngtthuwmqdcxgddlbsyo.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_YJzguO8nmmVKURa58cKwVw__9ulKxI6";
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 document.addEventListener("DOMContentLoaded", async () => {
-  const urlParams = new URLSearchParams(location.search);
-  const viewingHandle = urlParams.get("u"); // プロフ表示用
-  const dmToHandle = urlParams.get("to");   // DM宛先
-
+  // ------------------------------
+  // 共通状態
+  // ------------------------------
   let currentUser = null;
   let currentProfile = null;
 
-  let viewingProfileUserId = null;
-  let currentReplyParentId = null;
-  let currentDMPartnerId = null;
-  const dmPartnersMap = {}; // user_id → profile
+  // DM で使う
+  let currentDmPartner = null;
 
-  // -------------------------
-  // DOM取得
-  // -------------------------
+  // DOM
   const tweetsContainer = document.getElementById("tweetsContainer");
   const profileTweetsContainer = document.getElementById("profileTweetsContainer");
-  const notificationsContainer = document.getElementById("notificationsContainer");
 
-  // サイドバー
-  const sidebarNameEl = document.getElementById("currentUserName");
-  const sidebarHandleEl = document.getElementById("currentUserHandle");
-  const sidebarAvatarEl = document.getElementById("currentUserAvatar");
-  const logoutBtn = document.getElementById("logoutBtn");
+  // ==============================
+  // ユーティリティ
+  // ==============================
+  function formatTime(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return `${d.getMonth() + 1}/${d.getDate()} ${String(
+      d.getHours()
+    ).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  }
 
-  // コンポーザー
-  const composerAvatarHome = document.getElementById("composerAvatar");
-  const composerAvatarModal = document.getElementById("composerAvatarModal");
+  function updateCounter(input, counter) {
+    if (!input || !counter) return;
+    counter.textContent = `${input.value.length} / 140`;
+  }
 
-  const tweetInput = document.getElementById("tweetInput");
-  const charCounter = document.getElementById("charCounter");
-  const imageSelectBtn = document.getElementById("imageSelectBtn");
-  const imageInput = document.getElementById("imageInput");
-  const imagePreview = document.getElementById("imagePreview");
-  const postTweetBtn = document.getElementById("postTweetBtn");
-
-  const tweetModal = document.getElementById("tweetModal");
-  const openModalBtn = document.getElementById("openModalBtn");
-  const closeModalBtn = document.getElementById("closeModalBtn");
-  const tweetModalBackdrop = tweetModal?.querySelector(".modal-backdrop");
-  const tweetInputModal = document.getElementById("tweetInputModal");
-  const charCounterModal = document.getElementById("charCounterModal");
-  const imageSelectBtnModal = document.getElementById("imageSelectBtnModal");
-  const imageInputModal = document.getElementById("imageInputModal");
-  const imagePreviewModal = document.getElementById("imagePreviewModal");
-  const postTweetBtnModal = document.getElementById("postTweetBtnModal");
-
-  // 返信モーダル
-  const replyModal = document.getElementById("replyModal");
-  const closeReplyModalBtn = document.getElementById("closeReplyModalBtn");
-  const replyInput = document.getElementById("replyInput");
-  const replyCounter = document.getElementById("replyCounter");
-  const replyPostBtn = document.getElementById("replyPostBtn");
-  const replyAvatarEl = document.getElementById("replyAvatar");
-  const replyBackdrop = replyModal?.querySelector(".modal-backdrop");
-
-  // アカウントモーダル
-  const accountModal = document.getElementById("accountModal");
-  const switchAccountBtn = document.getElementById("switchAccountBtn");
-  const switchAccountBtnMobile = document.getElementById("switchAccountBtnMobile");
-  const closeAccountModalBtn = document.getElementById("closeAccountModalBtn");
-  const accountBackdrop = accountModal?.querySelector(".modal-backdrop");
-  const accountTabs = document.querySelectorAll(".account-tab");
-  const accountLoginView = document.getElementById("accountLoginView");
-  const accountRegisterView = document.getElementById("accountRegisterView");
-
-  const regNameInput = document.getElementById("regNameInput");
-  const regHandleInput = document.getElementById("regHandleInput");
-  const regEmailInput = document.getElementById("regEmailInput");
-  const regAvatarInput = document.getElementById("regAvatarInput");
-  const regPasswordInput = document.getElementById("regPasswordInput");
-  const registerError = document.getElementById("registerError");
-  const registerSubmitBtn = document.getElementById("registerSubmitBtn");
-
-  const loginHandleInput = document.getElementById("loginHandleInput");
-  const loginPasswordInput = document.getElementById("loginPasswordInput");
-  const loginError = document.getElementById("loginError");
-  const loginSubmitBtn = document.getElementById("loginSubmitBtn");
-
-  // プロフィール関連
-  const profileNameEl = document.getElementById("profileName");
-  const profileHandleEl = document.getElementById("profileHandle");
-  const profileAvatarEl = document.getElementById("profileAvatar");
-  const profileBioEl =
-    document.getElementById("profileBio") || document.querySelector(".profile-bio");
-  const editProfileBtn = document.getElementById("editProfileBtn");
-  const editProfileModal = document.getElementById("editProfileModal");
-  const closeEditProfileModalBtn = document.getElementById("closeEditProfileModal");
-  const editNameInput = document.getElementById("editNameInput");
-  const editAvatarInput = document.getElementById("editAvatarInput");
-  const editBioInput = document.getElementById("editBioInput");
-  const saveProfileBtn = document.getElementById("saveProfileBtn");
-  const editProfileError = document.getElementById("editProfileError");
-  const editProfileBackdrop = editProfileModal?.querySelector(".modal-backdrop");
-  const dmFromProfileBtn = document.getElementById("dmFromProfileBtn");
-
-  // DM関連
-  const dmConversationsEl = document.getElementById("dmConversations");
-  const dmMessagesEl = document.getElementById("dmMessages");
-  const dmPartnerNameEl = document.getElementById("dmPartnerName");
-  const dmPartnerHandleEl = document.getElementById("dmPartnerHandle");
-  const dmPartnerAvatarEl = document.getElementById("dmPartnerAvatar");
-  const dmInputEl = document.getElementById("dmInput");
-  const dmSendBtn = document.getElementById("dmSendBtn");
-
-  // テーマ（見た目だけライト固定）
+  // ==============================
+  // テーマ（見た目だけ）
+  // ==============================
   const themeToggleBtn = document.getElementById("themeToggle");
-  document.body.setAttribute("data-theme", "light");
+  const savedTheme = localStorage.getItem("steplink-theme");
+  if (savedTheme === "light" || savedTheme === "dark") {
+    document.body.setAttribute("data-theme", savedTheme);
+  }
   if (themeToggleBtn) {
     themeToggleBtn.addEventListener("click", () => {
-      document.body.setAttribute("data-theme", "light");
-      localStorage.setItem("steplink-theme", "light");
+      const now = document.body.getAttribute("data-theme") || "light";
+      const next = now === "dark" ? "light" : "dark";
+      document.body.setAttribute("data-theme", next);
+      localStorage.setItem("steplink-theme", next);
     });
   }
 
   // ==============================
-  // ログイン状態ロード
+  // ログイン状態の読み込み
   // ==============================
   async function loadAuthState() {
     const { data, error } = await supabaseClient.auth.getUser();
-    if (error || !data.user) {
-      currentUser = null;
-      currentProfile = null;
-      applySidebarUI(null, null);
+    if (error) {
+      console.error("getUser error:", error);
+      applyUserUI(null, null);
+      return;
+    }
+    if (!data.user) {
+      applyUserUI(null, null);
       return;
     }
 
     currentUser = data.user;
 
-    const { data: p, error: pErr } = await supabaseClient
+    // profiles から取得
+    const { data: profileData, error: profileError } = await supabaseClient
       .from("profiles")
-      .select("id, name, handle, avatar, bio")
+      .select("name, handle, avatar, bio")
       .eq("id", currentUser.id)
       .maybeSingle();
 
-    if (pErr && pErr.code !== "PGRST116") {
-      console.error("profile load error:", pErr);
+    if (profileError && profileError.code !== "PGRST116") {
+      console.error("プロフィール取得エラー:", profileError);
     }
-    currentProfile = p || null;
 
-    applySidebarUI(currentUser, currentProfile);
+    currentProfile = profileData || null;
+    applyUserUI(currentUser, currentProfile);
   }
 
-  function applySidebarUI(user, profile) {
+  // ==============================
+  // ユーザー情報を画面に反映
+  // ==============================
+  function applyUserUI(user, profile) {
+    const nameEl = document.getElementById("currentUserName");
+    const handleEl = document.getElementById("currentUserHandle");
+    const avatarEl = document.getElementById("currentUserAvatar");
+
+    const profileNameEl = document.getElementById("profileName");
+    const profileHandleEl = document.getElementById("profileHandle");
+    const profileBioEl = document.querySelector(".profile-bio");
+    const profileAvatarEl = document.querySelector(".profile-avatar");
+
     if (!user) {
-      if (sidebarNameEl) sidebarNameEl.textContent = "未ログイン";
-      if (sidebarHandleEl) sidebarHandleEl.textContent = "";
-      if (sidebarAvatarEl) sidebarAvatarEl.textContent = "🧑‍💻";
-      if (composerAvatarHome) composerAvatarHome.textContent = "🧑‍💻";
-      if (composerAvatarModal) composerAvatarModal.textContent = "🧑‍💻";
-      if (replyAvatarEl) replyAvatarEl.textContent = "🧑‍💻";
+      if (nameEl) nameEl.textContent = "未ログイン";
+      if (handleEl) handleEl.textContent = "";
+      if (avatarEl) avatarEl.textContent = "🧑‍💻";
+
+      if (profileNameEl) profileNameEl.textContent = "StepLinkユーザー";
+      if (profileHandleEl) profileHandleEl.textContent = "@user";
+      if (profileBioEl) profileBioEl.textContent = "プロフィール準備中";
+      if (profileAvatarEl) profileAvatarEl.textContent = "🧑‍💻";
       return;
     }
 
-    const name = profile?.name || user.user_metadata?.name || "StepLinkユーザー";
-    const handle = profile?.handle || user.user_metadata?.handle || "user";
-    const avatar = profile?.avatar || user.user_metadata?.avatar || "🧑‍💻";
+    const name =
+      profile?.name || user.user_metadata?.name || "StepLinkユーザー";
+    const handle =
+      profile?.handle || user.user_metadata?.handle || "user";
+    const avatar =
+      profile?.avatar || user.user_metadata?.avatar || "🧑‍💻";
+    const bio = profile?.bio || "プロフィールはまだ書かれていません";
 
-    if (sidebarNameEl) sidebarNameEl.textContent = name;
-    if (sidebarHandleEl) sidebarHandleEl.textContent = "@" + handle;
-    if (sidebarAvatarEl) sidebarAvatarEl.textContent = avatar;
-    if (composerAvatarHome) composerAvatarHome.textContent = avatar;
-    if (composerAvatarModal) composerAvatarModal.textContent = avatar;
-    if (replyAvatarEl) replyAvatarEl.textContent = avatar;
-  }
+    if (nameEl) nameEl.textContent = name;
+    if (handleEl) handleEl.textContent = "@" + handle;
+    if (avatarEl) avatarEl.textContent = avatar;
 
-  function applyProfileViewUI(profileData) {
-    if (!profileNameEl && !profileHandleEl && !profileAvatarEl && !profileBioEl) return;
-
-    if (!profileData) {
-      if (profileNameEl) profileNameEl.textContent = "ユーザーが見つかりません";
-      if (profileHandleEl) profileHandleEl.textContent = "";
-      if (profileAvatarEl) profileAvatarEl.textContent = "❓";
-      if (profileBioEl) profileBioEl.textContent = "";
-      return;
-    }
-
-    const { name, handle, avatar, bio } = profileData;
-    if (profileNameEl) profileNameEl.textContent = name || "StepLinkユーザー";
-    if (profileHandleEl) profileHandleEl.textContent = handle ? "@" + handle : "@user";
-    if (profileAvatarEl) profileAvatarEl.textContent = avatar || "🧑‍💻";
-    if (profileBioEl) profileBioEl.textContent =
-      bio || "プロフィールはまだ書かれていません";
+    if (profileNameEl) profileNameEl.textContent = name;
+    if (profileHandleEl) profileHandleEl.textContent = "@" + handle;
+    if (profileBioEl) profileBioEl.textContent = bio;
+    if (profileAvatarEl) profileAvatarEl.textContent = avatar;
   }
 
   await loadAuthState();
 
   // ==============================
-  // ログアウト
-  // ==============================
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", async () => {
-      await supabaseClient.auth.signOut();
-      location.reload();
-    });
-  }
-
-  // ==============================
   // アカウントモーダル
   // ==============================
+  const accountModal = document.getElementById("accountModal");
+  const switchAccountBtn = document.getElementById("switchAccountBtn");
+  const closeAccountModalBtn = document.getElementById("closeAccountModalBtn");
+  const accountBackdrop = accountModal?.querySelector(".modal-backdrop");
+
   function openAccountModal() {
     if (accountModal) accountModal.classList.remove("hidden");
   }
@@ -217,9 +150,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (switchAccountBtn && accountModal) {
     switchAccountBtn.addEventListener("click", openAccountModal);
   }
-  if (switchAccountBtnMobile && accountModal) {
-    switchAccountBtnMobile.addEventListener("click", openAccountModal);
-  }
   if (closeAccountModalBtn) {
     closeAccountModalBtn.addEventListener("click", closeAccountModal);
   }
@@ -227,12 +157,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     accountBackdrop.addEventListener("click", closeAccountModal);
   }
 
+  // タブ切り替え
+  const accountTabs = document.querySelectorAll(".account-tab");
+  const accountLoginView = document.getElementById("accountLoginView");
+  const accountRegisterView = document.getElementById("accountRegisterView");
+
   function switchAccountTab(mode) {
     accountTabs.forEach((tab) => {
       tab.classList.toggle("active", tab.dataset.mode === mode);
     });
-
     if (!accountLoginView || !accountRegisterView) return;
+
     if (mode === "login") {
       accountLoginView.classList.remove("hidden");
       accountRegisterView.classList.add("hidden");
@@ -243,12 +178,23 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   accountTabs.forEach((tab) => {
-    tab?.addEventListener("click", () => switchAccountTab(tab.dataset.mode));
+    tab.addEventListener("click", () => switchAccountTab(tab.dataset.mode));
   });
 
+  // ------------------------------
   // 新規登録
+  // ------------------------------
+  const regNameInput = document.getElementById("regNameInput");
+  const regHandleInput = document.getElementById("regHandleInput");
+  const regEmailInput = document.getElementById("regEmailInput");
+  const regAvatarInput = document.getElementById("regAvatarInput");
+  const regPasswordInput = document.getElementById("regPasswordInput");
+  const registerError = document.getElementById("registerError");
+  const registerSubmitBtn = document.getElementById("registerSubmitBtn");
+
   async function handleRegister() {
-    if (!regNameInput || !regHandleInput || !regEmailInput || !regPasswordInput) return;
+    if (!regNameInput || !regHandleInput || !regEmailInput || !regPasswordInput)
+      return;
 
     const name = regNameInput.value.trim();
     const handle = regHandleInput.value.trim();
@@ -285,13 +231,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const user = data.user;
     if (user) {
-      const { error: pErr } = await supabaseClient.from("profiles").upsert({
-        id: user.id,
-        name,
-        handle,
-        avatar,
-      });
-      if (pErr) console.error("profiles upsert error:", pErr);
+      const { error: profileErr } = await supabaseClient
+        .from("profiles")
+        .upsert({
+          id: user.id,
+          name,
+          handle,
+          avatar,
+        });
+
+      if (profileErr) {
+        console.error("profiles upsert error:", profileErr);
+      }
     }
 
     alert("アカウント作成できたよ💚 ログインしてね！");
@@ -302,9 +253,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     registerSubmitBtn.addEventListener("click", handleRegister);
   }
 
+  // ------------------------------
   // ログイン
+  // ------------------------------
+  const loginHandleInput = document.getElementById("loginHandleInput");
+  const loginPasswordInput = document.getElementById("loginPasswordInput");
+  const loginError = document.getElementById("loginError");
+  const loginSubmitBtn = document.getElementById("loginSubmitBtn");
+
   async function handleLogin() {
     if (!loginHandleInput || !loginPasswordInput) return;
+
     const email = loginHandleInput.value.trim();
     const password = loginPasswordInput.value;
 
@@ -332,408 +291,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     loginSubmitBtn.addEventListener("click", handleLogin);
   }
 
-  // ==============================
-  // プロフィール編集
-  // ==============================
-  function openEditProfileModal() {
-    if (!editProfileModal || !currentUser) return;
-
-    const name =
-      currentProfile?.name || currentUser?.user_metadata?.name || "StepLinkユーザー";
-    const avatar =
-      currentProfile?.avatar || currentUser?.user_metadata?.avatar || "🧑‍💻";
-    const bio = currentProfile?.bio || currentUser?.user_metadata?.bio || "";
-
-    if (editNameInput) editNameInput.value = name;
-    if (editAvatarInput) editAvatarInput.value = avatar;
-    if (editBioInput) editBioInput.value = bio;
-    if (editProfileError) editProfileError.textContent = "";
-
-    editProfileModal.classList.remove("hidden");
-  }
-
-  function closeEditProfileModal() {
-    if (editProfileModal) editProfileModal.classList.add("hidden");
-  }
-
-  if (editProfileBtn) {
-    editProfileBtn.addEventListener("click", () => {
-      if (!currentUser) {
-        alert("ログインしてから編集してね🥺");
-        return;
-      }
-      openEditProfileModal();
-    });
-  }
-  if (closeEditProfileModalBtn) {
-    closeEditProfileModalBtn.addEventListener("click", closeEditProfileModal);
-  }
-  if (editProfileBackdrop) {
-    editProfileBackdrop.addEventListener("click", closeEditProfileModal);
-  }
-
-  if (saveProfileBtn) {
-    saveProfileBtn.addEventListener("click", async () => {
-      if (!currentUser) return;
-
-      const name = editNameInput?.value.trim() || "";
-      const avatar = editAvatarInput?.value.trim() || "";
-      const bio = editBioInput?.value.trim() || "";
-
-      if (!name || !avatar) {
-        if (editProfileError)
-          editProfileError.textContent = "名前とアイコンは必須だよ🥺";
-        return;
-      }
-      if (editProfileError) editProfileError.textContent = "";
-
-      const handle =
-        currentProfile?.handle || currentUser.user_metadata?.handle || "user";
-
-      const { error: pErr } = await supabaseClient.from("profiles").upsert({
-        id: currentUser.id,
-        name,
-        handle,
-        avatar,
-        bio,
-      });
-      if (pErr) {
-        console.error("profile update error:", pErr);
-        if (editProfileError)
-          editProfileError.textContent = "プロフィール更新に失敗した…😭";
-        return;
-      }
-
-      const { error: authErr } = await supabaseClient.auth.updateUser({
-        data: { name, handle, avatar, bio },
-      });
-      if (authErr) console.error("auth update error:", authErr);
-
-      currentProfile = { ...(currentProfile || {}), name, handle, avatar, bio };
-      applySidebarUI(currentUser, currentProfile);
-
-      if (viewingProfileUserId === currentUser.id) {
-        applyProfileViewUI({ name, handle, avatar, bio });
-      }
-
-      closeEditProfileModal();
+  // ------------------------------
+  // ログアウト
+  // ------------------------------
+  const logoutBtn = document.querySelector(".logout-button");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async () => {
+      await supabaseClient.auth.signOut();
+      location.reload();
     });
   }
 
   // ==============================
-  // DM：プロフィールから「メッセージ」ボタン
+  // ツイート読み込み + いいね + 返信
   // ==============================
-  if (dmFromProfileBtn) {
-    dmFromProfileBtn.addEventListener("click", () => {
-      if (!profileHandleEl) return;
-      const handleText = profileHandleEl.textContent || "";
-      const handle = handleText.replace(/^@/, "");
-      if (!handle) return;
-      location.href = `messages.html?to=${encodeURIComponent(handle)}`;
-    });
-  }
+  async function loadTweetsFromDB(targetContainer = tweetsContainer) {
+    if (!targetContainer) return;
 
-  // ==============================
-  // カウンタ & プレビュー
-  // ==============================
-  function updateCounter(input, counter) {
-    if (!input || !counter) return;
-    counter.textContent = `${input.value.length} / 140`;
-  }
-
-  function setupComposer({
-    input,
-    counter,
-    imageBtn,
-    fileInput,
-    preview,
-    submitBtn,
-    parentId = null,
-  }) {
-    if (input && counter) {
-      updateCounter(input, counter);
-      input.addEventListener("input", () => updateCounter(input, counter));
-    }
-
-    if (imageBtn && fileInput && preview) {
-      imageBtn.addEventListener("click", () => fileInput.click());
-      fileInput.addEventListener("change", () => {
-        const file = fileInput.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          preview.innerHTML = "";
-          const img = document.createElement("img");
-          img.src = e.target.result;
-          preview.appendChild(img);
-        };
-        reader.readAsDataURL(file);
-      });
-    }
-
-    if (submitBtn && input) {
-      submitBtn.addEventListener("click", () =>
-        handlePostFrom(input, counter, preview, parentId)
-      );
-    }
-  }
-
-  // ホーム用コンポーザー
-  setupComposer({
-    input: tweetInput,
-    counter: charCounter,
-    imageBtn: imageSelectBtn,
-    fileInput: imageInput,
-    preview: imagePreview,
-    submitBtn: postTweetBtn,
-  });
-
-  // モーダル用コンポーザー
-  setupComposer({
-    input: tweetInputModal,
-    counter: charCounterModal,
-    imageBtn: imageSelectBtnModal,
-    fileInput: imageInputModal,
-    preview: imagePreviewModal,
-    submitBtn: postTweetBtnModal,
-  });
-
-  // ==============================
-  // 通知作成ヘルパー
-  // ==============================
-  async function createNotification(type, targetUserId, messageText) {
-    if (!currentUser || !targetUserId || targetUserId === currentUser.id) return;
-
-    const name =
-      currentProfile?.name || currentUser.user_metadata?.name || "StepLinkユーザー";
-    const handle =
-      currentProfile?.handle || currentUser.user_metadata?.handle || "user";
-    const avatar =
-      currentProfile?.avatar || currentUser.user_metadata?.avatar || "🧑‍💻";
-
-    const snippet =
-      (messageText || "").length > 60
-        ? messageText.slice(0, 60) + "…"
-        : messageText || "";
-
-    const { error } = await supabaseClient.from("notifications").insert({
-      user_id: targetUserId,
-      from_user_id: currentUser.id,
-      type,
-      message: snippet,
-      from_name: name,
-      from_handle: handle,
-      from_avatar: avatar,
-    });
-    if (error) console.error("notification error:", error);
-  }
-
-  // ==============================
-  // 投稿処理
-  // ==============================
-  async function handlePostFrom(input, counter, preview, parentId = null) {
-    if (!input) return;
-    const text = input.value.trim();
-    if (!text) return;
-    if (text.length > 140) {
-      alert("140文字までだよ🥺");
-      return;
-    }
-
-    await createTweet(text, parentId);
-
-    input.value = "";
-    if (counter) updateCounter(input, counter);
-    if (preview) preview.innerHTML = "";
-
-    if (tweetsContainer) await loadTimeline();
-    if (profileTweetsContainer && viewingProfileUserId) {
-      await loadProfileTimeline(viewingProfileUserId);
-    }
-  }
-
-  async function createTweet(text, parentId = null) {
-    if (!currentUser) {
-      alert("ログインしてから投稿してね🥺");
-      return;
-    }
-
-    const name =
-      currentProfile?.name || currentUser.user_metadata?.name || "StepLinkユーザー";
-    const handle =
-      currentProfile?.handle || currentUser.user_metadata?.handle || "user";
-    const avatar =
-      currentProfile?.avatar || currentUser.user_metadata?.avatar || "🧑‍💻";
-
-    const { data: inserted, error } = await supabaseClient
-      .from("tweets")
-      .insert({
-        user_id: currentUser.id,
-        name,
-        handle,
-        avatar,
-        content: text,
-        parent_id: parentId,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error("tweet insert error:", error);
-      alert("投稿に失敗しちゃった…😭 コンソール見て！");
-      return;
-    }
-
-    // 返信 → 通知
-    if (parentId) {
-      const { data: parentTweet, error: parentErr } = await supabaseClient
-        .from("tweets")
-        .select("user_id")
-        .eq("id", parentId)
-        .maybeSingle();
-
-      if (!parentErr && parentTweet && parentTweet.user_id) {
-        await createNotification("reply", parentTweet.user_id, text);
-      }
-    }
-
-    return inserted;
-  }
-
-  // ==============================
-  // 返信モーダル
-  // ==============================
-  function openReplyModal(parentTweetRow) {
-    currentReplyParentId = parentTweetRow.id;
-
-    if (replyInput) {
-      replyInput.value = "";
-      updateCounter(replyInput, replyCounter);
-    }
-
-    if (replyModal) replyModal.classList.remove("hidden");
-  }
-
-  function closeReplyModal() {
-    if (replyModal) replyModal.classList.add("hidden");
-  }
-
-  if (closeReplyModalBtn) {
-    closeReplyModalBtn.addEventListener("click", closeReplyModal);
-  }
-  if (replyBackdrop) {
-    replyBackdrop.addEventListener("click", closeReplyModal);
-  }
-
-  if (replyPostBtn && replyInput) {
-    replyPostBtn.addEventListener("click", async () => {
-      const text = replyInput.value.trim();
-      if (!text) return;
-      if (text.length > 140) {
-        alert("140文字までだよ🥺");
-        return;
-      }
-
-      await createTweet(text, currentReplyParentId);
-      closeReplyModal();
-
-      if (tweetsContainer) await loadTimeline();
-      if (profileTweetsContainer && viewingProfileUserId) {
-        await loadProfileTimeline(viewingProfileUserId);
-      }
-    });
-  }
-
-  // ==============================
-  // タイムライン & 返信読み込み
-  // ==============================
-  function formatTime(iso) {
-    if (!iso) return "";
-    const d = new Date(iso);
-    return `${d.getMonth() + 1}/${d.getDate()} ${String(
-      d.getHours()
-    ).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  }
-
-  function renderTweet(row, container, { showReplyButton = true } = {}) {
-    const article = document.createElement("article");
-    article.className = "post";
-    article.dataset.tweetId = row.id;
-
-    article.innerHTML = `
-      <div class="post-avatar post-user-click">${row.avatar || "🧑‍💻"}</div>
-      <div class="post-body">
-        <div class="post-header post-user-area">
-          <span class="post-name">${row.name}</span>
-          <span class="post-handle">@${row.handle}</span>
-          <span class="post-time">${formatTime(row.created_at)}</span>
-        </div>
-        <div class="post-text"></div>
-        ${
-          showReplyButton
-            ? `<div class="post-footer">
-                 <button class="icon-btn reply-button">返信</button>
-               </div>`
-            : ""
-        }
-        <div class="replies"></div>
-      </div>
-    `;
-    article.querySelector(".post-text").textContent = row.content || "";
-    container.appendChild(article);
-
-    const userArea = article.querySelector(".post-user-area");
-    const avatarArea = article.querySelector(".post-avatar.post-user-click");
-    const goProfile = () => {
-      if (row.handle) {
-        location.href = `profile.html?u=${encodeURIComponent(row.handle)}`;
-      }
-    };
-    if (userArea) userArea.addEventListener("click", goProfile);
-    if (avatarArea) avatarArea.addEventListener("click", goProfile);
-
-    return article;
-  }
-
-  async function loadReplies(parentId, repliesContainer) {
-    if (!repliesContainer) return;
-    const { data, error } = await supabaseClient
+    const { data: tweets, error } = await supabaseClient
       .from("tweets")
       .select("*")
-      .eq("parent_id", parentId)
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      console.error("replies load error:", error);
-      return;
-    }
-
-    repliesContainer.innerHTML = "";
-    data.forEach((reply) => {
-      const div = document.createElement("div");
-      div.className = "reply-card";
-      div.innerHTML = `
-        <div class="reply-avatar">${reply.avatar || "🧑‍💻"}</div>
-        <div class="reply-body">
-          <div class="reply-header">
-            <span class="reply-name">${reply.name}</span>
-            <span class="reply-handle">@${reply.handle}</span>
-            <span class="reply-time">${formatTime(reply.created_at)}</span>
-          </div>
-          <div class="reply-text"></div>
-        </div>
-      `;
-      div.querySelector(".reply-text").textContent = reply.content || "";
-      repliesContainer.appendChild(div);
-    });
-  }
-
-  async function loadTimeline() {
-    if (!tweetsContainer) return;
-    const { data, error } = await supabaseClient
-      .from("tweets")
-      .select("*")
-      .is("parent_id", null)
       .order("created_at", { ascending: false })
       .limit(50);
 
@@ -742,215 +319,466 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    tweetsContainer.innerHTML = "";
-    for (const row of data) {
-      const article = renderTweet(row, tweetsContainer, { showReplyButton: true });
-      const repliesContainer = article.querySelector(".replies");
-      await loadReplies(row.id, repliesContainer);
+    const tweetIds = tweets.map((t) => t.id);
 
-      const replyBtn = article.querySelector(".reply-button");
-      if (replyBtn) {
-        replyBtn.addEventListener("click", () => {
-          openReplyModal(row);
-        });
+    // 返信
+    let replyMap = {};
+    if (tweetIds.length > 0) {
+      const { data: replies, error: replyErr } = await supabaseClient
+        .from("tweet_replies")
+        .select("*")
+        .in("tweet_id", tweetIds)
+        .order("created_at", { ascending: true });
+
+      if (replyErr) {
+        console.error("reply load error:", replyErr);
+      } else {
+        replyMap = replies.reduce((map, r) => {
+          if (!map[r.tweet_id]) map[r.tweet_id] = [];
+          map[r.tweet_id].push(r);
+          return map;
+        }, {});
       }
     }
+
+    // いいね
+    let likeMap = {};
+    if (tweetIds.length > 0) {
+      const { data: likes, error: likeErr } = await supabaseClient
+        .from("tweet_likes")
+        .select("tweet_id, user_id")
+        .in("tweet_id", tweetIds);
+
+      if (likeErr) {
+        console.error("like load error:", likeErr);
+      } else {
+        likeMap = likes.reduce((map, l) => {
+          if (!map[l.tweet_id]) {
+            map[l.tweet_id] = {
+              count: 0,
+              likedByMe: false,
+            };
+          }
+          map[l.tweet_id].count++;
+          if (currentUser && l.user_id === currentUser.id) {
+            map[l.tweet_id].likedByMe = true;
+          }
+          return map;
+        }, {});
+      }
+    }
+
+    targetContainer.innerHTML = "";
+    tweets.forEach((row) => {
+      const likeInfo = likeMap[row.id] || { count: 0, likedByMe: false };
+      const replies = replyMap[row.id] || [];
+      renderTweet(row, likeInfo, replies, targetContainer);
+    });
   }
 
-  async function loadProfileTimeline(userId) {
-    if (!profileTweetsContainer || !userId) return;
+  function renderTweet(row, likeInfo, replies, container) {
+    if (!container) return;
+
+    const article = document.createElement("article");
+    article.className = "post";
+    article.dataset.tweetId = row.id;
+
+    const likeCount = likeInfo.count ?? 0;
+    const liked = !!likeInfo.likedByMe;
+
+    article.innerHTML = `
+      <div class="post-avatar post-user-click" data-user-id="${row.user_id}">
+        ${row.avatar}
+      </div>
+      <div class="post-body">
+        <div class="post-header">
+          <span class="post-name post-user-area" data-user-id="${row.user_id}">${row.name}</span>
+          <span class="post-handle">@${row.handle}</span>
+          <span class="post-time">${formatTime(row.created_at)}</span>
+        </div>
+        <div class="post-text"></div>
+        <div class="post-footer">
+          <button class="reply-btn" data-tweet-id="${row.id}">返信</button>
+          <button class="like-btn ${liked ? "liked" : ""}" data-tweet-id="${row.id}">
+            <span class="like-heart">♥</span>
+            <span class="like-count">${likeCount}</span>
+          </button>
+        </div>
+        <div class="replies"></div>
+      </div>
+    `;
+
+    article.querySelector(".post-text").textContent = row.content;
+
+    const repliesContainer = article.querySelector(".replies");
+    replies.forEach((rep) => {
+      const repEl = document.createElement("div");
+      repEl.className = "reply-card";
+      repEl.innerHTML = `
+        <div class="reply-avatar">${rep.avatar}</div>
+        <div class="reply-body">
+          <div class="reply-header">
+            <span class="reply-name">${rep.name}</span>
+            <span class="reply-handle">@${rep.handle}</span>
+            <span class="reply-time">${formatTime(rep.created_at)}</span>
+          </div>
+          <div class="reply-text"></div>
+        </div>
+      `;
+      repEl.querySelector(".reply-text").textContent = rep.content;
+      repliesContainer.appendChild(repEl);
+    });
+
+    container.appendChild(article);
+  }
+
+  // ホームならタイムライン読み込み
+  if (tweetsContainer) {
+    await loadTweetsFromDB(tweetsContainer);
+  }
+
+  // プロフィールページのツイート
+  if (profileTweetsContainer && currentUser) {
     const { data, error } = await supabaseClient
       .from("tweets")
       .select("*")
-      .eq("user_id", userId)
-      .is("parent_id", null)
+      .eq("user_id", currentUser.id)
       .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("profile tweets load error:", error);
-      return;
+    if (!error && data) {
+      const fakeLikeInfo = { count: 0, likedByMe: false };
+      profileTweetsContainer.innerHTML = "";
+      data.forEach((row) =>
+        renderTweet(row, fakeLikeInfo, [], profileTweetsContainer)
+      );
     }
-
-    profileTweetsContainer.innerHTML = "";
-    data.forEach((row) => {
-      renderTweet(row, profileTweetsContainer, { showReplyButton: false });
-    });
   }
 
   // ==============================
-  // 通知一覧
+  // 投稿作成
   // ==============================
-  async function loadNotifications() {
-    if (!notificationsContainer || !currentUser) return;
+  const tweetInput = document.getElementById("tweetInput");
+  const charCounter = document.getElementById("charCounter");
+  const imageSelectBtn = document.getElementById("imageSelectBtn");
+  const imageInput = document.getElementById("imageInput");
+  const imagePreview = document.getElementById("imagePreview");
+  const postTweetBtn = document.getElementById("postTweetBtn");
 
-    const { data, error } = await supabaseClient
-      .from("notifications")
-      .select("*")
-      .eq("user_id", currentUser.id)
-      .order("created_at", { ascending: false })
-      .limit(50);
+  if (tweetInput && charCounter) {
+    updateCounter(tweetInput, charCounter);
+    tweetInput.addEventListener("input", () =>
+      updateCounter(tweetInput, charCounter)
+    );
+  }
 
-    if (error) {
-      console.error("notifications load error:", error);
-      return;
-    }
-
-    notificationsContainer.innerHTML = "";
-
-    if (!data.length) {
-      const empty = document.createElement("div");
-      empty.className = "post";
-      empty.textContent = "まだ通知はありません。";
-      notificationsContainer.appendChild(empty);
-      return;
-    }
-
-    data.forEach((n) => {
-      const article = document.createElement("article");
-      article.className = "post";
-
-      const label =
-        n.type === "reply"
-          ? "あなたの投稿に返信しました"
-          : n.type === "dm"
-          ? "あなたにメッセージを送りました"
-          : "通知";
-
-      article.innerHTML = `
-        <div class="post-avatar">${n.from_avatar || "🧑‍💻"}</div>
-        <div class="post-body">
-          <div class="post-header">
-            <span class="post-name">${n.from_name || "ユーザー"}</span>
-            <span class="post-handle">@${n.from_handle || "user"}</span>
-            <span class="post-time">${formatTime(n.created_at)}</span>
-          </div>
-          <div class="post-text">
-            ${label}<br>
-            「${n.message || ""}」
-          </div>
-        </div>
-      `;
-      notificationsContainer.appendChild(article);
+  if (imageSelectBtn && imageInput && imagePreview) {
+    imageSelectBtn.addEventListener("click", () => imageInput.click());
+    imageInput.addEventListener("change", () => {
+      const file = imageInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        imagePreview.innerHTML = "";
+        const img = document.createElement("img");
+        img.src = e.target.result;
+        imagePreview.appendChild(img);
+      };
+      reader.readAsDataURL(file);
     });
   }
 
-  // ==============================
-  // プロフィール画面セットアップ
-  // ==============================
-  async function setupProfileView() {
-    if (!profileNameEl && !profileTweetsContainer) return;
-
-    // ?u=handle → 他人 or 自分
-    if (viewingHandle) {
-      const { data: p, error } = await supabaseClient
-        .from("profiles")
-        .select("id, name, handle, avatar, bio")
-        .eq("handle", viewingHandle)
-        .maybeSingle();
-
-      if (error) {
-        console.error("view profile load error:", error);
-        applyProfileViewUI(null);
-        if (editProfileBtn) editProfileBtn.style.display = "none";
-        if (dmFromProfileBtn) dmFromProfileBtn.style.display = "none";
-        return;
-      }
-      if (!p) {
-        applyProfileViewUI(null);
-        if (editProfileBtn) editProfileBtn.style.display = "none";
-        if (dmFromProfileBtn) dmFromProfileBtn.style.display = "none";
-        return;
-      }
-
-      viewingProfileUserId = p.id;
-      applyProfileViewUI(p);
-
-      if (editProfileBtn) {
-        if (currentUser && currentUser.id === p.id) {
-          editProfileBtn.style.display = "inline-block";
-        } else {
-          editProfileBtn.style.display = "none";
-        }
-      }
-      if (dmFromProfileBtn) {
-        if (currentUser && currentUser.id === p.id) {
-          dmFromProfileBtn.style.display = "none";
-        } else {
-          dmFromProfileBtn.style.display = "inline-block";
-        }
-      }
-
-      await loadProfileTimeline(viewingProfileUserId);
-      return;
-    }
-
-    // 自分のプロフィール
+  async function createTweet(text) {
     if (!currentUser) {
-      applyProfileViewUI({
-        name: "StepLinkユーザー",
-        handle: "user",
-        avatar: "🧑‍💻",
-        bio: "ログインするとプロフィールを編集できます",
-      });
-      if (editProfileBtn) editProfileBtn.style.display = "none";
-      if (dmFromProfileBtn) dmFromProfileBtn.style.display = "none";
+      alert("ログインしてから投稿してね🥺");
       return;
     }
 
     const name =
-      currentProfile?.name || currentUser.user_metadata?.name || "StepLinkユーザー";
+      currentProfile?.name ||
+      currentUser.user_metadata?.name ||
+      "StepLinkユーザー";
     const handle =
-      currentProfile?.handle || currentUser.user_metadata?.handle || "user";
+      currentProfile?.handle ||
+      currentUser.user_metadata?.handle ||
+      "user";
     const avatar =
-      currentProfile?.avatar || currentUser.user_metadata?.avatar || "🧑‍💻";
-    const bio =
-      currentProfile?.bio ||
-      currentUser.user_metadata?.bio ||
-      "プロフィールはまだ書かれていません";
+      currentProfile?.avatar ||
+      currentUser.user_metadata?.avatar ||
+      "🧑‍💻";
 
-    viewingProfileUserId = currentUser.id;
+    const { error } = await supabaseClient.from("tweets").insert({
+      user_id: currentUser.id,
+      name,
+      handle,
+      avatar,
+      content: text,
+    });
 
-    applyProfileViewUI({ name, handle, avatar, bio });
-
-    if (editProfileBtn) editProfileBtn.style.display = "inline-block";
-    if (dmFromProfileBtn) dmFromProfileBtn.style.display = "none";
-
-    await loadProfileTimeline(viewingProfileUserId);
-  }
-
-  // ==============================
-  // DM 関係
-  // ==============================
-  async function setupDM() {
-    if (!dmConversationsEl) return;
-
-    if (!currentUser) {
-      dmConversationsEl.innerHTML =
-        '<div class="dm-conversation-item">ログインしてね🥺</div>';
+    if (error) {
+      console.error("tweet insert error:", error);
+      alert("投稿に失敗しちゃった…😭 コンソール見て！");
       return;
     }
 
-    let initialPartnerProfile = null;
-    if (dmToHandle) {
-      const { data: p, error } = await supabaseClient
-        .from("profiles")
-        .select("id, name, handle, avatar")
-        .eq("handle", dmToHandle)
-        .maybeSingle();
-      if (!error && p) {
-        initialPartnerProfile = p;
-        dmPartnersMap[p.id] = p;
-      }
+    if (tweetsContainer) {
+      await loadTweetsFromDB(tweetsContainer);
     }
-
-    await loadDMConversations(initialPartnerProfile);
   }
 
-  async function loadDMConversations(initialPartnerProfile) {
-    if (!dmConversationsEl || !currentUser) return;
+  async function handlePostFrom(input, counter, preview) {
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text) return;
+    if (text.length > 140) {
+      alert("140文字までだよ🥺");
+      return;
+    }
+
+    await createTweet(text);
+
+    input.value = "";
+    if (counter) updateCounter(input, counter);
+    if (preview) preview.innerHTML = "";
+  }
+
+  if (postTweetBtn && tweetInput) {
+    postTweetBtn.addEventListener("click", () =>
+      handlePostFrom(tweetInput, charCounter, imagePreview)
+    );
+  }
+
+  // ==============================
+  // 返信モーダル
+  // ==============================
+  const replyModal = document.getElementById("replyModal");
+  const replyBackdrop = replyModal?.querySelector(".modal-backdrop");
+  const replyCloseBtn = document.getElementById("closeReplyModalBtn");
+  const replyInput = document.getElementById("replyInput");
+  const replyPostBtn = document.getElementById("replyPostBtn");
+  const replyCounter = document.getElementById("replyCharCounter");
+  let replyTargetTweetId = null;
+
+  function openReplyModal(tweetId) {
+    replyTargetTweetId = tweetId;
+    if (replyInput) {
+      replyInput.value = "";
+      if (replyCounter) updateCounter(replyInput, replyCounter);
+    }
+    if (replyModal) replyModal.classList.remove("hidden");
+  }
+  function closeReplyModal() {
+    if (replyModal) replyModal.classList.add("hidden");
+  }
+
+  if (replyBackdrop) replyBackdrop.addEventListener("click", closeReplyModal);
+  if (replyCloseBtn) replyCloseBtn.addEventListener("click", closeReplyModal);
+
+  if (replyInput && replyCounter) {
+    replyInput.addEventListener("input", () =>
+      updateCounter(replyInput, replyCounter)
+    );
+  }
+
+  async function handleReplyPost() {
+    if (!replyInput || !replyTargetTweetId) return;
+    const text = replyInput.value.trim();
+    if (!text) return;
+
+    if (!currentUser) {
+      alert("ログインしてから返信してね🥺");
+      return;
+    }
+
+    const name =
+      currentProfile?.name ||
+      currentUser.user_metadata?.name ||
+      "StepLinkユーザー";
+    const handle =
+      currentProfile?.handle ||
+      currentUser.user_metadata?.handle ||
+      "user";
+    const avatar =
+      currentProfile?.avatar ||
+      currentUser.user_metadata?.avatar ||
+      "🧑‍💻";
+
+    const { error } = await supabaseClient.from("tweet_replies").insert({
+      tweet_id: replyTargetTweetId,
+      user_id: currentUser.id,
+      name,
+      handle,
+      avatar,
+      content: text,
+    });
+
+    if (error) {
+      console.error("reply insert error:", error);
+      alert("返信に失敗しちゃった…");
+      return;
+    }
+
+    if (tweetsContainer) {
+      await loadTweetsFromDB(tweetsContainer);
+    }
+    closeReplyModal();
+  }
+
+  if (replyPostBtn) {
+    replyPostBtn.addEventListener("click", handleReplyPost);
+  }
+
+  // ==============================
+  // タイムライン上のクリック（返信 / いいね）
+  // ==============================
+  if (tweetsContainer) {
+    tweetsContainer.addEventListener("click", async (e) => {
+      const replyBtn = e.target.closest(".reply-btn");
+      if (replyBtn) {
+        const tid = replyBtn.dataset.tweetId;
+        openReplyModal(tid);
+        return;
+      }
+
+      const likeBtn = e.target.closest(".like-btn");
+      if (likeBtn) {
+        if (!currentUser) {
+          alert("ログインしてからいいねしてね🥺");
+          return;
+        }
+
+        const tweetId = likeBtn.dataset.tweetId;
+        const countSpan = likeBtn.querySelector(".like-count");
+        let count = parseInt(countSpan.textContent || "0", 10) || 0;
+        const liked = likeBtn.classList.contains("liked");
+
+        // 楽観的更新
+        if (liked) {
+          likeBtn.classList.remove("liked");
+          countSpan.textContent = Math.max(count - 1, 0);
+        } else {
+          likeBtn.classList.add("liked");
+          countSpan.textContent = count + 1;
+        }
+
+        // DB更新
+        if (liked) {
+          const { error } = await supabaseClient
+            .from("tweet_likes")
+            .delete()
+            .match({ tweet_id: tweetId, user_id: currentUser.id });
+
+          if (error) {
+            console.error("unlike error:", error);
+            likeBtn.classList.add("liked");
+            countSpan.textContent = count;
+          }
+        } else {
+          const { error } = await supabaseClient
+            .from("tweet_likes")
+            .insert({ tweet_id: tweetId, user_id: currentUser.id });
+
+          if (error) {
+            console.error("like error:", error);
+            likeBtn.classList.remove("liked");
+            countSpan.textContent = count;
+          }
+        }
+      }
+    });
+  }
+
+  // ==============================
+  // プロフィール編集（Twitter 風のボタン前提）
+  // ==============================
+  const editProfileBtn = document.getElementById("editProfileBtn");
+  const editProfileModal = document.getElementById("editProfileModal");
+  const editProfileBackdrop =
+    editProfileModal?.querySelector(".modal-backdrop");
+  const closeEditProfileModalBtn = document.getElementById(
+    "closeEditProfileModalBtn"
+  );
+  const editNameInput = document.getElementById("editNameInput");
+  const editHandleInput = document.getElementById("editHandleInput");
+  const editAvatarInput = document.getElementById("editAvatarInput");
+  const editBioInput = document.getElementById("editBioInput");
+  const editProfileSaveBtn = document.getElementById("editProfileSaveBtn");
+
+  function openEditProfileModal() {
+    if (!currentUser) {
+      alert("ログインしてから編集してね🥺");
+      return;
+    }
+    if (editNameInput)
+      editNameInput.value =
+        currentProfile?.name || currentUser.user_metadata?.name || "";
+    if (editHandleInput)
+      editHandleInput.value =
+        currentProfile?.handle || currentUser.user_metadata?.handle || "";
+    if (editAvatarInput)
+      editAvatarInput.value =
+        currentProfile?.avatar || currentUser.user_metadata?.avatar || "🧑‍💻";
+    if (editBioInput) editBioInput.value = currentProfile?.bio || "";
+
+    if (editProfileModal) editProfileModal.classList.remove("hidden");
+  }
+  function closeEditProfileModal() {
+    if (editProfileModal) editProfileModal.classList.add("hidden");
+  }
+
+  if (editProfileBtn) {
+    editProfileBtn.addEventListener("click", openEditProfileModal);
+  }
+  if (editProfileBackdrop) {
+    editProfileBackdrop.addEventListener("click", closeEditProfileModal);
+  }
+  if (closeEditProfileModalBtn) {
+    closeEditProfileModalBtn.addEventListener("click", closeEditProfileModal);
+  }
+
+  if (editProfileSaveBtn) {
+    editProfileSaveBtn.addEventListener("click", async () => {
+      if (!currentUser) return;
+      const name = editNameInput?.value.trim() || "";
+      const handle = editHandleInput?.value.trim() || "";
+      const avatar = editAvatarInput?.value.trim() || "🧑‍💻";
+      const bio = editBioInput?.value.trim() || "";
+
+      const { error } = await supabaseClient.from("profiles").upsert({
+        id: currentUser.id,
+        name,
+        handle,
+        avatar,
+        bio,
+      });
+
+      if (error) {
+        console.error("profile update error:", error);
+        alert("プロフィール更新に失敗しちゃった…");
+        return;
+      }
+
+      currentProfile = { name, handle, avatar, bio };
+      applyUserUI(currentUser, currentProfile);
+      closeEditProfileModal();
+    });
+  }
+
+  // ==============================
+  // DM（messages.html 用）
+  // ==============================
+  const dmConversationList = document.getElementById("dmConversationList");
+  const dmMessagesEl = document.getElementById("dmMessages");
+  const dmInput = document.getElementById("dmInput");
+  const dmSendBtn = document.getElementById("dmSendBtn");
+  const dmPartnerNameEl = document.getElementById("dmPartnerName");
+  const dmPartnerHandleEl = document.getElementById("dmPartnerHandle");
+  const dmPartnerAvatarEl = document.getElementById("dmPartnerAvatar");
+
+  async function loadDmConversations() {
+    if (!dmConversationList || !currentUser) return;
 
     const { data, error } = await supabaseClient
-      .from("messages")
+      .from("dms")
       .select("*")
       .or(
         `from_user_id.eq.${currentUser.id},to_user_id.eq.${currentUser.id}`
@@ -958,142 +786,63 @@ document.addEventListener("DOMContentLoaded", async () => {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("messages load error:", error);
+      console.error("dms load error:", error);
       return;
     }
 
-    const partners = new Map(); // user_id → { lastMessage, updatedAt }
-
-    data.forEach((msg) => {
-      const partnerId =
-        msg.from_user_id === currentUser.id ? msg.to_user_id : msg.from_user_id;
-      const existing = partners.get(partnerId);
-      if (!existing || existing.updatedAt < msg.created_at) {
-        partners.set(partnerId, {
-          lastMessage: msg.content,
-          updatedAt: msg.created_at,
-        });
-      }
+    const partnerIds = new Set();
+    data.forEach((dm) => {
+      const other =
+        dm.from_user_id === currentUser.id
+          ? dm.to_user_id
+          : dm.from_user_id;
+      partnerIds.add(other);
     });
 
-    if (initialPartnerProfile && !partners.has(initialPartnerProfile.id)) {
-      partners.set(initialPartnerProfile.id, {
-        lastMessage: "",
-        updatedAt: new Date().toISOString(),
-      });
-    }
-
-    const partnerIds = Array.from(partners.keys());
-    if (partnerIds.length) {
-      const { data: profiles, error: pErr } = await supabaseClient
-        .from("profiles")
-        .select("id, name, handle, avatar")
-        .in("id", partnerIds);
-
-      if (!pErr && profiles) {
-        profiles.forEach((p) => {
-          dmPartnersMap[p.id] = p;
-        });
-      }
-    }
-
-    if (initialPartnerProfile) {
-      dmPartnersMap[initialPartnerProfile.id] = initialPartnerProfile;
-    }
-
-    // レンダリング
-    dmConversationsEl.innerHTML = "";
-    if (!partnerIds.length && !initialPartnerProfile) {
-      dmConversationsEl.innerHTML =
-        '<div class="dm-conversation-item">まだメッセージはありません</div>';
+    if (partnerIds.size === 0) {
+      dmConversationList.innerHTML = "<p style='padding:8px;'>まだDMはありません</p>";
       return;
     }
 
-    const sorted = Array.from(partners.entries()).sort(
-      (a, b) => new Date(b[1].updatedAt) - new Date(a[1].updatedAt)
-    );
-
-    sorted.forEach(([partnerId, info]) => {
-      const profile = dmPartnersMap[partnerId] || {
-        name: "ユーザー",
-        handle: "user",
-        avatar: "🧑‍💻",
-      };
-
-      const item = document.createElement("div");
-      item.className = "dm-conversation-item";
-      item.dataset.userId = partnerId;
-      item.innerHTML = `
-        <div class="dm-conv-avatar">${profile.avatar || "🧑‍💻"}</div>
-        <div class="dm-conv-main">
-          <div class="dm-conv-name">${profile.name}</div>
-          <div class="dm-conv-last">${info.lastMessage || ""}</div>
-        </div>
-      `;
-      item.addEventListener("click", () => {
-        selectConversation(partnerId);
-      });
-      dmConversationsEl.appendChild(item);
-    });
-
-    // 初期選択
-    if (initialPartnerProfile) {
-      selectConversation(initialPartnerProfile.id);
-    } else if (!currentDMPartnerId && sorted.length) {
-      selectConversation(sorted[0][0]);
-    } else if (currentDMPartnerId) {
-      selectConversation(currentDMPartnerId);
-    }
-  }
-
-  async function selectConversation(partnerId) {
-    currentDMPartnerId = partnerId;
-
-    if (dmConversationsEl) {
-      Array.from(dmConversationsEl.querySelectorAll(".dm-conversation-item")).forEach(
-        (el) => {
-          el.classList.toggle("active", el.dataset.userId === partnerId);
-        }
-      );
-    }
-
-    const profile =
-      dmPartnersMap[partnerId] || (await fetchProfileById(partnerId));
-
-    if (profile) dmPartnersMap[partnerId] = profile;
-
-    if (dmPartnerNameEl) dmPartnerNameEl.textContent = profile?.name || "ユーザー";
-    if (dmPartnerHandleEl)
-      dmPartnerHandleEl.textContent = profile?.handle
-        ? "@" + profile.handle
-        : "";
-    if (dmPartnerAvatarEl)
-      dmPartnerAvatarEl.textContent = profile?.avatar || "🧑‍💻";
-
-    await loadDMMessages(partnerId);
-  }
-
-  async function fetchProfileById(userId) {
-    const { data, error } = await supabaseClient
+    const { data: profiles, error: profErr } = await supabaseClient
       .from("profiles")
       .select("id, name, handle, avatar")
-      .eq("id", userId)
-      .maybeSingle();
-    if (error) {
-      console.error("fetchProfileById error:", error);
-      return null;
+      .in("id", Array.from(partnerIds));
+
+    if (profErr) {
+      console.error("dm profiles load error:", profErr);
+      return;
     }
-    return data;
+
+    const profileMap = {};
+    profiles.forEach((p) => (profileMap[p.id] = p));
+
+    dmConversationList.innerHTML = "";
+    partnerIds.forEach((pid) => {
+      const p = profileMap[pid];
+      if (!p) return;
+      const item = document.createElement("div");
+      item.className = "dm-conversation-item";
+      item.dataset.userId = p.id;
+      item.innerHTML = `
+        <div class="dm-conv-avatar">${p.avatar || "🧑‍💻"}</div>
+        <div class="dm-conv-main">
+          <div class="dm-conv-name">${p.name}</div>
+          <div class="dm-conv-last">@${p.handle}</div>
+        </div>
+      `;
+      dmConversationList.appendChild(item);
+    });
   }
 
-  async function loadDMMessages(partnerId) {
-    if (!dmMessagesEl || !currentUser) return;
+  async function loadCurrentConversation() {
+    if (!dmMessagesEl || !currentUser || !currentDmPartner) return;
 
     const { data, error } = await supabaseClient
-      .from("messages")
+      .from("dms")
       .select("*")
       .or(
-        `and(from_user_id.eq.${currentUser.id},to_user_id.eq.${partnerId}),and(from_user_id.eq.${partnerId},to_user_id.eq.${currentUser.id})`
+        `and(from_user_id.eq.${currentUser.id},to_user_id.eq.${currentDmPartner.id}),and(from_user_id.eq.${currentDmPartner.id},to_user_id.eq.${currentUser.id})`
       )
       .order("created_at", { ascending: true });
 
@@ -1103,86 +852,87 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     dmMessagesEl.innerHTML = "";
-    data.forEach((msg) => {
-      const div = document.createElement("div");
-      div.className =
-        "dm-message " + (msg.from_user_id === currentUser.id ? "me" : "other");
-      div.innerHTML = `
-        <div>${msg.content}</div>
-        <div class="dm-message-time">${formatTime(msg.created_at)}</div>
+    data.forEach((m) => {
+      const me = m.from_user_id === currentUser.id;
+      const box = document.createElement("div");
+      box.className = `dm-message ${me ? "me" : "other"}`;
+      box.innerHTML = `
+        <div class="dm-message-text"></div>
+        <div class="dm-message-time">${formatTime(m.created_at)}</div>
       `;
-      dmMessagesEl.appendChild(div);
+      box.querySelector(".dm-message-text").textContent = m.content;
+      dmMessagesEl.appendChild(box);
     });
 
     dmMessagesEl.scrollTop = dmMessagesEl.scrollHeight;
   }
 
-  async function sendDM() {
-    if (!currentUser || !dmInputEl || !currentDMPartnerId) {
+  if (dmConversationList && currentUser) {
+    await loadDmConversations();
+
+    dmConversationList.addEventListener("click", async (e) => {
+      const item = e.target.closest(".dm-conversation-item");
+      if (!item) return;
+
+      const partnerId = item.dataset.userId;
+      const { data: p, error } = await supabaseClient
+        .from("profiles")
+        .select("id, name, handle, avatar")
+        .eq("id", partnerId)
+        .maybeSingle();
+
+      if (error || !p) return;
+
+      currentDmPartner = p;
+
+      // active クラス
+      dmConversationList
+        .querySelectorAll(".dm-conversation-item")
+        .forEach((el) => el.classList.remove("active"));
+      item.classList.add("active");
+
+      if (dmPartnerNameEl) dmPartnerNameEl.textContent = p.name;
+      if (dmPartnerHandleEl) dmPartnerHandleEl.textContent = "@" + p.handle;
+      if (dmPartnerAvatarEl)
+        dmPartnerAvatarEl.textContent = p.avatar || "🧑‍💻";
+
+      await loadCurrentConversation();
+    });
+  }
+
+  async function handleSendDm() {
+    if (!dmInput || !currentUser || !currentDmPartner) {
       alert("相手を選んでから送ってね🥺");
       return;
     }
-
-    const text = dmInputEl.value.trim();
+    const text = dmInput.value.trim();
     if (!text) return;
 
-    const { error, data } = await supabaseClient
-      .from("messages")
-      .insert({
-        from_user_id: currentUser.id,
-        to_user_id: currentDMPartnerId,
-        content: text,
-      })
-      .select()
-      .single();
+    const { error } = await supabaseClient.from("dms").insert({
+      from_user_id: currentUser.id,
+      to_user_id: currentDmPartner.id,
+      content: text,
+    });
 
     if (error) {
-      console.error("dm insert error:", error);
-      alert("メッセージ送信に失敗した…😭");
+      console.error("dm send error:", error);
+      alert("DM送信に失敗しちゃった…");
       return;
     }
 
-    await createNotification("dm", currentDMPartnerId, text);
-
-    dmInputEl.value = "";
-    await loadDMConversations(dmPartnersMap[currentDMPartnerId] || null);
+    dmInput.value = "";
+    await loadCurrentConversation();
   }
 
-  if (dmSendBtn && dmInputEl) {
-    dmSendBtn.addEventListener("click", sendDM);
+  if (dmSendBtn) {
+    dmSendBtn.addEventListener("click", handleSendDm);
   }
-
-  // ==============================
-  // 投稿モーダル開閉
-  // ==============================
-  function openTweetModal() {
-    if (tweetModal) tweetModal.classList.remove("hidden");
-  }
-  function closeTweetModal() {
-    if (tweetModal) tweetModal.classList.add("hidden");
-  }
-
-  if (openModalBtn && tweetModal) {
-    openModalBtn.addEventListener("click", openTweetModal);
-  }
-  if (closeModalBtn) {
-    closeModalBtn.addEventListener("click", closeTweetModal);
-  }
-  if (tweetModalBackdrop) {
-    tweetModalBackdrop.addEventListener("click", closeTweetModal);
-  }
-
-  // ==============================
-  // 初期ロード
-  // ==============================
-  if (tweetsContainer) {
-    await loadTimeline();
-  }
-  await setupProfileView();
-  if (notificationsContainer) {
-    await loadNotifications();
-  }
-  if (dmConversationsEl) {
-    await setupDM();
+  if (dmInput) {
+    dmInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSendDm();
+      }
+    });
   }
 });
