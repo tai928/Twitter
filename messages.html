@@ -2,14 +2,13 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>StepLink - メッセージ</title>
+  <title>StepLink</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div class="app">
-
     <!-- 左サイドバー -->
     <aside class="sidebar-left">
       <div class="logo">StepLink</div>
@@ -17,6 +16,7 @@
       <nav class="nav">
         <a href="index.html" class="nav-item">ホーム</a>
         <a href="messages.html" class="nav-item active">メッセージ</a>
+        <a href="notifications.html" class="nav-item">通知</a>
         <a href="profile.html" class="nav-item">プロフィール</a>
       </nav>
 
@@ -35,19 +35,45 @@
       </div>
     </aside>
 
-    <!-- メッセージ本体 -->
+    <!-- DM レイアウト -->
     <main class="timeline">
       <header class="timeline-header">
         <h1>メッセージ</h1>
       </header>
 
-      <section class="placeholder">
-        <p>メッセージ機能は準備中です。</p>
-      </section>
+      <div class="dm-layout">
+        <!-- 左：会話一覧 -->
+        <aside class="dm-sidebar">
+          <div class="dm-sidebar-header">メッセージ</div>
+          <div id="dmConversations" class="dm-conversation-list">
+            <!-- JSで追加 -->
+          </div>
+        </aside>
+
+        <!-- 右：チャット -->
+        <section class="dm-main">
+          <div class="dm-main-header">
+            <div class="dm-partner-avatar" id="dmPartnerAvatar">💬</div>
+            <div>
+              <div class="dm-partner-name" id="dmPartnerName">相手を選んでね</div>
+              <div class="dm-partner-handle" id="dmPartnerHandle"></div>
+            </div>
+          </div>
+
+          <div id="dmMessages" class="dm-messages">
+            <!-- JSで追加 -->
+          </div>
+
+          <div class="dm-input-area">
+            <textarea id="dmInput" placeholder="メッセージを入力"></textarea>
+            <button id="dmSendBtn" class="primary">送信</button>
+          </div>
+        </section>
+      </div>
     </main>
   </div>
 
-  <!-- アカウントモーダル（共通） -->
+  <!-- アカウントモーダル -->
   <div id="accountModal" class="modal hidden">
     <div class="modal-backdrop"></div>
     <div class="modal-content">
@@ -62,18 +88,18 @@
         </div>
 
         <div id="accountLoginView">
-          <label>メール<input id="loginHandleInput" type="email"></label>
-          <label>パスワード<input id="loginPasswordInput" type="password"></label>
+          <label>メール<input id="loginHandleInput" type="email" /></label>
+          <label>パスワード<input id="loginPasswordInput" type="password" /></label>
           <button class="primary" id="loginSubmitBtn">ログイン</button>
           <div id="loginError" class="account-error"></div>
         </div>
 
         <div id="accountRegisterView" class="hidden">
-          <label>名前<input id="regNameInput" type="text"></label>
-          <label>ハンドル（@なし）<input id="regHandleInput" type="text"></label>
-          <label>メール<input id="regEmailInput" type="email"></label>
-          <label>絵文字<input id="regAvatarInput" type="text" placeholder="🎣"></label>
-          <label>パスワード<input id="regPasswordInput" type="password"></label>
+          <label>名前<input id="regNameInput" type="text" /></label>
+          <label>ハンドル（@なし）<input id="regHandleInput" type="text" /></label>
+          <label>メール<input id="regEmailInput" type="email" /></label>
+          <label>絵文字<input id="regAvatarInput" type="text" placeholder="🎣" /></label>
+          <label>パスワード<input id="regPasswordInput" type="password" /></label>
           <button class="primary" id="registerSubmitBtn">アカウント作成</button>
           <div id="registerError" class="account-error"></div>
         </div>
@@ -81,25 +107,22 @@
     </div>
   </div>
 
-  <!-- スマホ用ボトムナビ -->
+  <!-- ボトムナビ -->
   <nav class="bottom-nav">
     <a href="index.html" class="bottom-nav-item">
-      <span class="icon">🏠</span>
-      <span>ホーム</span>
+      <span class="icon">🏠</span><span>ホーム</span>
     </a>
     <a href="messages.html" class="bottom-nav-item active">
-      <span class="icon">💬</span>
-      <span>メッセージ</span>
+      <span class="icon">💬</span><span>メッセージ</span>
+    </a>
+    <a href="notifications.html" class="bottom-nav-item">
+      <span class="icon">🔔</span><span>通知</span>
     </a>
     <a href="profile.html" class="bottom-nav-item">
-      <span class="icon">👤</span>
-      <span>プロフィール</span>
+      <span class="icon">👤</span><span>プロフィール</span>
     </a>
-
-    <!-- スマホ用アカウント -->
     <button type="button" class="bottom-nav-item" id="switchAccountBtnMobile">
-      <span class="icon">🔑</span>
-      <span>アカウント</span>
+      <span class="icon">🔑</span><span>アカウント</span>
     </button>
   </nav>
 
