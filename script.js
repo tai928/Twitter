@@ -7,51 +7,114 @@ const SUPABASE_ANON_KEY = "sb_publishable_YJzguO8nmmVKURa58cKwVw__9ulKxI6";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 document.addEventListener("DOMContentLoaded", async () => {
-  // URLパラメータ（相手プロフィール用） ?u=handle
   const urlParams = new URLSearchParams(location.search);
-  const viewingHandle = urlParams.get("u"); // null → 自分 / 文字列 → 相手
+  const viewingHandle = urlParams.get("u"); // プロフ表示用
+  const dmToHandle = urlParams.get("to");   // DM宛先
 
-  // ログイン中ユーザー
   let currentUser = null;
   let currentProfile = null;
 
-  // プロフィール画面で「誰の」プロフィールを表示するか
-  let viewingProfileUserId = null; // profiles.id / auth.user.id
+  let viewingProfileUserId = null;
+  let currentReplyParentId = null;
+  let currentDMPartnerId = null;
+  const dmPartnersMap = {}; // user_id → profile
 
   // -------------------------
-  // DOM 参照
+  // DOM取得
   // -------------------------
-  const tweetsContainer = document.getElementById("tweetsContainer"); // ホーム用
-  const profileTweetsContainer = document.getElementById("profileTweetsContainer"); // プロフ用
+  const tweetsContainer = document.getElementById("tweetsContainer");
+  const profileTweetsContainer = document.getElementById("profileTweetsContainer");
+  const notificationsContainer = document.getElementById("notificationsContainer");
 
-  // サイドバー & コンポーザー
+  // サイドバー
   const sidebarNameEl = document.getElementById("currentUserName");
   const sidebarHandleEl = document.getElementById("currentUserHandle");
   const sidebarAvatarEl = document.getElementById("currentUserAvatar");
+  const logoutBtn = document.getElementById("logoutBtn");
 
+  // コンポーザー
   const composerAvatarHome = document.getElementById("composerAvatar");
   const composerAvatarModal = document.getElementById("composerAvatarModal");
 
-  const logoutBtn = document.getElementById("logoutBtn");
+  const tweetInput = document.getElementById("tweetInput");
+  const charCounter = document.getElementById("charCounter");
+  const imageSelectBtn = document.getElementById("imageSelectBtn");
+  const imageInput = document.getElementById("imageInput");
+  const imagePreview = document.getElementById("imagePreview");
+  const postTweetBtn = document.getElementById("postTweetBtn");
 
-  // プロフィール表示用 DOM（自分 / 相手共通）
+  const tweetModal = document.getElementById("tweetModal");
+  const openModalBtn = document.getElementById("openModalBtn");
+  const closeModalBtn = document.getElementById("closeModalBtn");
+  const tweetModalBackdrop = tweetModal?.querySelector(".modal-backdrop");
+  const tweetInputModal = document.getElementById("tweetInputModal");
+  const charCounterModal = document.getElementById("charCounterModal");
+  const imageSelectBtnModal = document.getElementById("imageSelectBtnModal");
+  const imageInputModal = document.getElementById("imageInputModal");
+  const imagePreviewModal = document.getElementById("imagePreviewModal");
+  const postTweetBtnModal = document.getElementById("postTweetBtnModal");
+
+  // 返信モーダル
+  const replyModal = document.getElementById("replyModal");
+  const closeReplyModalBtn = document.getElementById("closeReplyModalBtn");
+  const replyInput = document.getElementById("replyInput");
+  const replyCounter = document.getElementById("replyCounter");
+  const replyPostBtn = document.getElementById("replyPostBtn");
+  const replyAvatarEl = document.getElementById("replyAvatar");
+  const replyBackdrop = replyModal?.querySelector(".modal-backdrop");
+
+  // アカウントモーダル
+  const accountModal = document.getElementById("accountModal");
+  const switchAccountBtn = document.getElementById("switchAccountBtn");
+  const switchAccountBtnMobile = document.getElementById("switchAccountBtnMobile");
+  const closeAccountModalBtn = document.getElementById("closeAccountModalBtn");
+  const accountBackdrop = accountModal?.querySelector(".modal-backdrop");
+  const accountTabs = document.querySelectorAll(".account-tab");
+  const accountLoginView = document.getElementById("accountLoginView");
+  const accountRegisterView = document.getElementById("accountRegisterView");
+
+  const regNameInput = document.getElementById("regNameInput");
+  const regHandleInput = document.getElementById("regHandleInput");
+  const regEmailInput = document.getElementById("regEmailInput");
+  const regAvatarInput = document.getElementById("regAvatarInput");
+  const regPasswordInput = document.getElementById("regPasswordInput");
+  const registerError = document.getElementById("registerError");
+  const registerSubmitBtn = document.getElementById("registerSubmitBtn");
+
+  const loginHandleInput = document.getElementById("loginHandleInput");
+  const loginPasswordInput = document.getElementById("loginPasswordInput");
+  const loginError = document.getElementById("loginError");
+  const loginSubmitBtn = document.getElementById("loginSubmitBtn");
+
+  // プロフィール関連
   const profileNameEl = document.getElementById("profileName");
   const profileHandleEl = document.getElementById("profileHandle");
   const profileAvatarEl = document.getElementById("profileAvatar");
   const profileBioEl =
-    document.getElementById("profileBio") ||
-    document.querySelector(".profile-bio");
+    document.getElementById("profileBio") || document.querySelector(".profile-bio");
+  const editProfileBtn = document.getElementById("editProfileBtn");
+  const editProfileModal = document.getElementById("editProfileModal");
+  const closeEditProfileModalBtn = document.getElementById("closeEditProfileModal");
+  const editNameInput = document.getElementById("editNameInput");
+  const editAvatarInput = document.getElementById("editAvatarInput");
+  const editBioInput = document.getElementById("editBioInput");
+  const saveProfileBtn = document.getElementById("saveProfileBtn");
+  const editProfileError = document.getElementById("editProfileError");
+  const editProfileBackdrop = editProfileModal?.querySelector(".modal-backdrop");
+  const dmFromProfileBtn = document.getElementById("dmFromProfileBtn");
 
-  // ==============================
-  // テーマ切り替え（見た目だけ・実質ライト固定）
-  // ==============================
+  // DM関連
+  const dmConversationsEl = document.getElementById("dmConversations");
+  const dmMessagesEl = document.getElementById("dmMessages");
+  const dmPartnerNameEl = document.getElementById("dmPartnerName");
+  const dmPartnerHandleEl = document.getElementById("dmPartnerHandle");
+  const dmPartnerAvatarEl = document.getElementById("dmPartnerAvatar");
+  const dmInputEl = document.getElementById("dmInput");
+  const dmSendBtn = document.getElementById("dmSendBtn");
+
+  // テーマ（見た目だけライト固定）
   const themeToggleBtn = document.getElementById("themeToggle");
-  const savedTheme = localStorage.getItem("steplink-theme");
-  if (savedTheme === "light" || savedTheme === "dark") {
-    document.body.setAttribute("data-theme", "light");
-  } else {
-    document.body.setAttribute("data-theme", "light");
-  }
+  document.body.setAttribute("data-theme", "light");
   if (themeToggleBtn) {
     themeToggleBtn.addEventListener("click", () => {
       document.body.setAttribute("data-theme", "light");
@@ -87,37 +150,31 @@ document.addEventListener("DOMContentLoaded", async () => {
     applySidebarUI(currentUser, currentProfile);
   }
 
-  // サイドバー & コンポーザー用 UI
   function applySidebarUI(user, profile) {
     if (!user) {
       if (sidebarNameEl) sidebarNameEl.textContent = "未ログイン";
       if (sidebarHandleEl) sidebarHandleEl.textContent = "";
       if (sidebarAvatarEl) sidebarAvatarEl.textContent = "🧑‍💻";
-
       if (composerAvatarHome) composerAvatarHome.textContent = "🧑‍💻";
       if (composerAvatarModal) composerAvatarModal.textContent = "🧑‍💻";
+      if (replyAvatarEl) replyAvatarEl.textContent = "🧑‍💻";
       return;
     }
 
     const name = profile?.name || user.user_metadata?.name || "StepLinkユーザー";
-    const handle =
-      profile?.handle || user.user_metadata?.handle || "user";
-    const avatar =
-      profile?.avatar || user.user_metadata?.avatar || "🧑‍💻";
+    const handle = profile?.handle || user.user_metadata?.handle || "user";
+    const avatar = profile?.avatar || user.user_metadata?.avatar || "🧑‍💻";
 
     if (sidebarNameEl) sidebarNameEl.textContent = name;
     if (sidebarHandleEl) sidebarHandleEl.textContent = "@" + handle;
     if (sidebarAvatarEl) sidebarAvatarEl.textContent = avatar;
-
     if (composerAvatarHome) composerAvatarHome.textContent = avatar;
     if (composerAvatarModal) composerAvatarModal.textContent = avatar;
+    if (replyAvatarEl) replyAvatarEl.textContent = avatar;
   }
 
-  // プロフィール画面に表示するユーザーの UI（自分でも相手でも）
   function applyProfileViewUI(profileData) {
-    if (!profileNameEl && !profileHandleEl && !profileAvatarEl && !profileBioEl) {
-      return; // プロフ画面じゃないとき
-    }
+    if (!profileNameEl && !profileHandleEl && !profileAvatarEl && !profileBioEl) return;
 
     if (!profileData) {
       if (profileNameEl) profileNameEl.textContent = "ユーザーが見つかりません";
@@ -128,13 +185,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const { name, handle, avatar, bio } = profileData;
-
     if (profileNameEl) profileNameEl.textContent = name || "StepLinkユーザー";
     if (profileHandleEl) profileHandleEl.textContent = handle ? "@" + handle : "@user";
     if (profileAvatarEl) profileAvatarEl.textContent = avatar || "🧑‍💻";
-    if (profileBioEl)
-      profileBioEl.textContent =
-        bio || "プロフィールはまだ書かれていません";
+    if (profileBioEl) profileBioEl.textContent =
+      bio || "プロフィールはまだ書かれていません";
   }
 
   await loadAuthState();
@@ -150,14 +205,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ==============================
-  // アカウントモーダル（PC & モバイル共通）
+  // アカウントモーダル
   // ==============================
-  const accountModal = document.getElementById("accountModal");
-  const switchAccountBtn = document.getElementById("switchAccountBtn"); // サイドバー
-  const switchAccountBtnMobile = document.getElementById("switchAccountBtnMobile"); // ボトムナビ
-  const closeAccountModalBtn = document.getElementById("closeAccountModalBtn");
-  const accountBackdrop = accountModal?.querySelector(".modal-backdrop");
-
   function openAccountModal() {
     if (accountModal) accountModal.classList.remove("hidden");
   }
@@ -178,18 +227,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     accountBackdrop.addEventListener("click", closeAccountModal);
   }
 
-  // タブ切り替え
-  const accountTabs = document.querySelectorAll(".account-tab");
-  const accountLoginView = document.getElementById("accountLoginView");
-  const accountRegisterView = document.getElementById("accountRegisterView");
-
   function switchAccountTab(mode) {
     accountTabs.forEach((tab) => {
       tab.classList.toggle("active", tab.dataset.mode === mode);
     });
 
     if (!accountLoginView || !accountRegisterView) return;
-
     if (mode === "login") {
       accountLoginView.classList.remove("hidden");
       accountRegisterView.classList.add("hidden");
@@ -200,26 +243,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   accountTabs.forEach((tab) => {
-    tab.addEventListener("click", () => switchAccountTab(tab.dataset.mode));
+    tab?.addEventListener("click", () => switchAccountTab(tab.dataset.mode));
   });
 
   // 新規登録
-  const regNameInput = document.getElementById("regNameInput");
-  const regHandleInput = document.getElementById("regHandleInput");
-  const regEmailInput = document.getElementById("regEmailInput");
-  const regAvatarInput = document.getElementById("regAvatarInput");
-  const regPasswordInput = document.getElementById("regPasswordInput");
-  const registerError = document.getElementById("registerError");
-  const registerSubmitBtn = document.getElementById("registerSubmitBtn");
-
   async function handleRegister() {
-    if (
-      !regNameInput ||
-      !regHandleInput ||
-      !regEmailInput ||
-      !regPasswordInput
-    )
-      return;
+    if (!regNameInput || !regHandleInput || !regEmailInput || !regPasswordInput) return;
 
     const name = regNameInput.value.trim();
     const handle = regHandleInput.value.trim();
@@ -274,11 +303,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ログイン
-  const loginHandleInput = document.getElementById("loginHandleInput");
-  const loginPasswordInput = document.getElementById("loginPasswordInput");
-  const loginError = document.getElementById("loginError");
-  const loginSubmitBtn = document.getElementById("loginSubmitBtn");
-
   async function handleLogin() {
     if (!loginHandleInput || !loginPasswordInput) return;
     const email = loginHandleInput.value.trim();
@@ -311,39 +335,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ==============================
   // プロフィール編集
   // ==============================
-  const editProfileBtn = document.getElementById("editProfileBtn");
-  const editProfileModal = document.getElementById("editProfileModal");
-  const closeEditProfileModalBtn = document.getElementById(
-    "closeEditProfileModal"
-  );
-  const editNameInput = document.getElementById("editNameInput");
-  const editAvatarInput = document.getElementById("editAvatarInput");
-  const editBioInput = document.getElementById("editBioInput");
-  const saveProfileBtn = document.getElementById("saveProfileBtn");
-  const editProfileError = document.getElementById("editProfileError");
-  const editProfileBackdrop =
-    editProfileModal?.querySelector(".modal-backdrop");
-
   function openEditProfileModal() {
     if (!editProfileModal || !currentUser) return;
 
     const name =
-      currentProfile?.name ||
-      currentUser?.user_metadata?.name ||
-      "StepLinkユーザー";
+      currentProfile?.name || currentUser?.user_metadata?.name || "StepLinkユーザー";
     const avatar =
-      currentProfile?.avatar ||
-      currentUser?.user_metadata?.avatar ||
-      "🧑‍💻";
-    const bio =
-      currentProfile?.bio ||
-      currentUser?.user_metadata?.bio ||
-      "";
+      currentProfile?.avatar || currentUser?.user_metadata?.avatar || "🧑‍💻";
+    const bio = currentProfile?.bio || currentUser?.user_metadata?.bio || "";
 
     if (editNameInput) editNameInput.value = name;
     if (editAvatarInput) editAvatarInput.value = avatar;
     if (editBioInput) editBioInput.value = bio;
-
     if (editProfileError) editProfileError.textContent = "";
 
     editProfileModal.classList.remove("hidden");
@@ -359,7 +362,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         alert("ログインしてから編集してね🥺");
         return;
       }
-      // 他人のプロフィールを見てるときは編集ボタン非表示にしてるはず
       openEditProfileModal();
     });
   }
@@ -383,13 +385,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           editProfileError.textContent = "名前とアイコンは必須だよ🥺";
         return;
       }
-
       if (editProfileError) editProfileError.textContent = "";
 
       const handle =
-        currentProfile?.handle ||
-        currentUser.user_metadata?.handle ||
-        "user";
+        currentProfile?.handle || currentUser.user_metadata?.handle || "user";
 
       const { error: pErr } = await supabaseClient.from("profiles").upsert({
         id: currentUser.id,
@@ -408,27 +407,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       const { error: authErr } = await supabaseClient.auth.updateUser({
         data: { name, handle, avatar, bio },
       });
-      if (authErr) {
-        console.error("auth update error:", authErr);
-      }
+      if (authErr) console.error("auth update error:", authErr);
 
-      currentProfile = {
-        ...(currentProfile || {}),
-        name,
-        handle,
-        avatar,
-        bio,
-      };
+      currentProfile = { ...(currentProfile || {}), name, handle, avatar, bio };
       applySidebarUI(currentUser, currentProfile);
 
-      // 自分のプロフィールを表示中なら、表示も更新
       if (viewingProfileUserId === currentUser.id) {
-        applyProfileViewUI({
-          name,
-          handle,
-          avatar,
-          bio,
-        });
+        applyProfileViewUI({ name, handle, avatar, bio });
       }
 
       closeEditProfileModal();
@@ -436,7 +421,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ==============================
-  // 文字数カウンタ & 画像プレビュー
+  // DM：プロフィールから「メッセージ」ボタン
+  // ==============================
+  if (dmFromProfileBtn) {
+    dmFromProfileBtn.addEventListener("click", () => {
+      if (!profileHandleEl) return;
+      const handleText = profileHandleEl.textContent || "";
+      const handle = handleText.replace(/^@/, "");
+      if (!handle) return;
+      location.href = `messages.html?to=${encodeURIComponent(handle)}`;
+    });
+  }
+
+  // ==============================
+  // カウンタ & プレビュー
   // ==============================
   function updateCounter(input, counter) {
     if (!input || !counter) return;
@@ -482,25 +480,57 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ホーム用コンポーザー
   setupComposer({
-    input: document.getElementById("tweetInput"),
-    counter: document.getElementById("charCounter"),
-    imageBtn: document.getElementById("imageSelectBtn"),
-    fileInput: document.getElementById("imageInput"),
-    preview: document.getElementById("imagePreview"),
-    submitBtn: document.getElementById("postTweetBtn"),
+    input: tweetInput,
+    counter: charCounter,
+    imageBtn: imageSelectBtn,
+    fileInput: imageInput,
+    preview: imagePreview,
+    submitBtn: postTweetBtn,
   });
 
   // モーダル用コンポーザー
   setupComposer({
-    input: document.getElementById("tweetInputModal"),
-    counter: document.getElementById("charCounterModal"),
-    imageBtn: document.getElementById("imageSelectBtnModal"),
-    fileInput: document.getElementById("imageInputModal"),
-    preview: document.getElementById("imagePreviewModal"),
-    submitBtn: document.getElementById("postTweetBtnModal"),
+    input: tweetInputModal,
+    counter: charCounterModal,
+    imageBtn: imageSelectBtnModal,
+    fileInput: imageInputModal,
+    preview: imagePreviewModal,
+    submitBtn: postTweetBtnModal,
   });
 
+  // ==============================
+  // 通知作成ヘルパー
+  // ==============================
+  async function createNotification(type, targetUserId, messageText) {
+    if (!currentUser || !targetUserId || targetUserId === currentUser.id) return;
+
+    const name =
+      currentProfile?.name || currentUser.user_metadata?.name || "StepLinkユーザー";
+    const handle =
+      currentProfile?.handle || currentUser.user_metadata?.handle || "user";
+    const avatar =
+      currentProfile?.avatar || currentUser.user_metadata?.avatar || "🧑‍💻";
+
+    const snippet =
+      (messageText || "").length > 60
+        ? messageText.slice(0, 60) + "…"
+        : messageText || "";
+
+    const { error } = await supabaseClient.from("notifications").insert({
+      user_id: targetUserId,
+      from_user_id: currentUser.id,
+      type,
+      message: snippet,
+      from_name: name,
+      from_handle: handle,
+      from_avatar: avatar,
+    });
+    if (error) console.error("notification error:", error);
+  }
+
+  // ==============================
   // 投稿処理
+  // ==============================
   async function handlePostFrom(input, counter, preview, parentId = null) {
     if (!input) return;
     const text = input.value.trim();
@@ -529,35 +559,93 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const name =
-      currentProfile?.name ||
-      currentUser.user_metadata?.name ||
-      "StepLinkユーザー";
+      currentProfile?.name || currentUser.user_metadata?.name || "StepLinkユーザー";
     const handle =
-      currentProfile?.handle ||
-      currentUser.user_metadata?.handle ||
-      "user";
+      currentProfile?.handle || currentUser.user_metadata?.handle || "user";
     const avatar =
-      currentProfile?.avatar ||
-      currentUser.user_metadata?.avatar ||
-      "🧑‍💻";
+      currentProfile?.avatar || currentUser.user_metadata?.avatar || "🧑‍💻";
 
-    const { error } = await supabaseClient.from("tweets").insert({
-      user_id: currentUser.id,
-      name,
-      handle,
-      avatar,
-      content: text,
-      parent_id: parentId,
-    });
+    const { data: inserted, error } = await supabaseClient
+      .from("tweets")
+      .insert({
+        user_id: currentUser.id,
+        name,
+        handle,
+        avatar,
+        content: text,
+        parent_id: parentId,
+      })
+      .select()
+      .single();
 
     if (error) {
       console.error("tweet insert error:", error);
       alert("投稿に失敗しちゃった…😭 コンソール見て！");
+      return;
     }
+
+    // 返信 → 通知
+    if (parentId) {
+      const { data: parentTweet, error: parentErr } = await supabaseClient
+        .from("tweets")
+        .select("user_id")
+        .eq("id", parentId)
+        .maybeSingle();
+
+      if (!parentErr && parentTweet && parentTweet.user_id) {
+        await createNotification("reply", parentTweet.user_id, text);
+      }
+    }
+
+    return inserted;
   }
 
   // ==============================
-  // タイムライン & 返信
+  // 返信モーダル
+  // ==============================
+  function openReplyModal(parentTweetRow) {
+    currentReplyParentId = parentTweetRow.id;
+
+    if (replyInput) {
+      replyInput.value = "";
+      updateCounter(replyInput, replyCounter);
+    }
+
+    if (replyModal) replyModal.classList.remove("hidden");
+  }
+
+  function closeReplyModal() {
+    if (replyModal) replyModal.classList.add("hidden");
+  }
+
+  if (closeReplyModalBtn) {
+    closeReplyModalBtn.addEventListener("click", closeReplyModal);
+  }
+  if (replyBackdrop) {
+    replyBackdrop.addEventListener("click", closeReplyModal);
+  }
+
+  if (replyPostBtn && replyInput) {
+    replyPostBtn.addEventListener("click", async () => {
+      const text = replyInput.value.trim();
+      if (!text) return;
+      if (text.length > 140) {
+        alert("140文字までだよ🥺");
+        return;
+      }
+
+      await createTweet(text, currentReplyParentId);
+      closeReplyModal();
+
+      if (tweetsContainer) await loadTimeline();
+      if (profileTweetsContainer && viewingProfileUserId) {
+        await loadProfileTimeline(viewingProfileUserId);
+      }
+    });
+  }
+
+  // ==============================
+  // タイムライン & 返信読み込み
   // ==============================
   function formatTime(iso) {
     if (!iso) return "";
@@ -594,7 +682,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     article.querySelector(".post-text").textContent = row.content || "";
     container.appendChild(article);
 
-    // アイコン・名前・ハンドルクリックでプロフィールへ
     const userArea = article.querySelector(".post-user-area");
     const avatarArea = article.querySelector(".post-avatar.post-user-click");
     const goProfile = () => {
@@ -657,19 +744,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     tweetsContainer.innerHTML = "";
     for (const row of data) {
-      const article = renderTweet(row, tweetsContainer, {
-        showReplyButton: true,
-      });
+      const article = renderTweet(row, tweetsContainer, { showReplyButton: true });
       const repliesContainer = article.querySelector(".replies");
       await loadReplies(row.id, repliesContainer);
 
       const replyBtn = article.querySelector(".reply-button");
       if (replyBtn) {
-        replyBtn.addEventListener("click", async () => {
-          const text = prompt("返信内容を入力してね");
-          if (!text) return;
-          await createTweet(text, row.id);
-          await loadTimeline();
+        replyBtn.addEventListener("click", () => {
+          openReplyModal(row);
         });
       }
     }
@@ -696,12 +778,69 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ==============================
-  // プロフィールページ用セットアップ
+  // 通知一覧
+  // ==============================
+  async function loadNotifications() {
+    if (!notificationsContainer || !currentUser) return;
+
+    const { data, error } = await supabaseClient
+      .from("notifications")
+      .select("*")
+      .eq("user_id", currentUser.id)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error("notifications load error:", error);
+      return;
+    }
+
+    notificationsContainer.innerHTML = "";
+
+    if (!data.length) {
+      const empty = document.createElement("div");
+      empty.className = "post";
+      empty.textContent = "まだ通知はありません。";
+      notificationsContainer.appendChild(empty);
+      return;
+    }
+
+    data.forEach((n) => {
+      const article = document.createElement("article");
+      article.className = "post";
+
+      const label =
+        n.type === "reply"
+          ? "あなたの投稿に返信しました"
+          : n.type === "dm"
+          ? "あなたにメッセージを送りました"
+          : "通知";
+
+      article.innerHTML = `
+        <div class="post-avatar">${n.from_avatar || "🧑‍💻"}</div>
+        <div class="post-body">
+          <div class="post-header">
+            <span class="post-name">${n.from_name || "ユーザー"}</span>
+            <span class="post-handle">@${n.from_handle || "user"}</span>
+            <span class="post-time">${formatTime(n.created_at)}</span>
+          </div>
+          <div class="post-text">
+            ${label}<br>
+            「${n.message || ""}」
+          </div>
+        </div>
+      `;
+      notificationsContainer.appendChild(article);
+    });
+  }
+
+  // ==============================
+  // プロフィール画面セットアップ
   // ==============================
   async function setupProfileView() {
-    if (!profileNameEl && !profileTweetsContainer) return; // プロフじゃない
+    if (!profileNameEl && !profileTweetsContainer) return;
 
-    // URLに ?u=handle がある → 相手のプロフィール
+    // ?u=handle → 他人 or 自分
     if (viewingHandle) {
       const { data: p, error } = await supabaseClient
         .from("profiles")
@@ -713,19 +852,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.error("view profile load error:", error);
         applyProfileViewUI(null);
         if (editProfileBtn) editProfileBtn.style.display = "none";
+        if (dmFromProfileBtn) dmFromProfileBtn.style.display = "none";
         return;
       }
-
       if (!p) {
         applyProfileViewUI(null);
         if (editProfileBtn) editProfileBtn.style.display = "none";
+        if (dmFromProfileBtn) dmFromProfileBtn.style.display = "none";
         return;
       }
 
       viewingProfileUserId = p.id;
       applyProfileViewUI(p);
 
-      // 自分のプロフィールを見てるときだけ編集ボタン出す
       if (editProfileBtn) {
         if (currentUser && currentUser.id === p.id) {
           editProfileBtn.style.display = "inline-block";
@@ -733,14 +872,20 @@ document.addEventListener("DOMContentLoaded", async () => {
           editProfileBtn.style.display = "none";
         }
       }
+      if (dmFromProfileBtn) {
+        if (currentUser && currentUser.id === p.id) {
+          dmFromProfileBtn.style.display = "none";
+        } else {
+          dmFromProfileBtn.style.display = "inline-block";
+        }
+      }
 
       await loadProfileTimeline(viewingProfileUserId);
       return;
     }
 
-    // ?u= なし → 自分のプロフィール
+    // 自分のプロフィール
     if (!currentUser) {
-      // 未ログイン
       applyProfileViewUI({
         name: "StepLinkユーザー",
         handle: "user",
@@ -748,6 +893,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         bio: "ログインするとプロフィールを編集できます",
       });
       if (editProfileBtn) editProfileBtn.style.display = "none";
+      if (dmFromProfileBtn) dmFromProfileBtn.style.display = "none";
       return;
     }
 
@@ -758,33 +904,257 @@ document.addEventListener("DOMContentLoaded", async () => {
     const avatar =
       currentProfile?.avatar || currentUser.user_metadata?.avatar || "🧑‍💻";
     const bio =
-      currentProfile?.bio || currentUser.user_metadata?.bio || "プロフィールはまだ書かれていません";
+      currentProfile?.bio ||
+      currentUser.user_metadata?.bio ||
+      "プロフィールはまだ書かれていません";
 
     viewingProfileUserId = currentUser.id;
 
     applyProfileViewUI({ name, handle, avatar, bio });
 
     if (editProfileBtn) editProfileBtn.style.display = "inline-block";
+    if (dmFromProfileBtn) dmFromProfileBtn.style.display = "none";
 
     await loadProfileTimeline(viewingProfileUserId);
   }
 
   // ==============================
-  // ホームタイムライン / プロフ表示 初期ロード
+  // DM 関係
   // ==============================
-  if (tweetsContainer) {
-    await loadTimeline();
+  async function setupDM() {
+    if (!dmConversationsEl) return;
+
+    if (!currentUser) {
+      dmConversationsEl.innerHTML =
+        '<div class="dm-conversation-item">ログインしてね🥺</div>';
+      return;
+    }
+
+    let initialPartnerProfile = null;
+    if (dmToHandle) {
+      const { data: p, error } = await supabaseClient
+        .from("profiles")
+        .select("id, name, handle, avatar")
+        .eq("handle", dmToHandle)
+        .maybeSingle();
+      if (!error && p) {
+        initialPartnerProfile = p;
+        dmPartnersMap[p.id] = p;
+      }
+    }
+
+    await loadDMConversations(initialPartnerProfile);
   }
-  await setupProfileView();
+
+  async function loadDMConversations(initialPartnerProfile) {
+    if (!dmConversationsEl || !currentUser) return;
+
+    const { data, error } = await supabaseClient
+      .from("messages")
+      .select("*")
+      .or(
+        `from_user_id.eq.${currentUser.id},to_user_id.eq.${currentUser.id}`
+      )
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("messages load error:", error);
+      return;
+    }
+
+    const partners = new Map(); // user_id → { lastMessage, updatedAt }
+
+    data.forEach((msg) => {
+      const partnerId =
+        msg.from_user_id === currentUser.id ? msg.to_user_id : msg.from_user_id;
+      const existing = partners.get(partnerId);
+      if (!existing || existing.updatedAt < msg.created_at) {
+        partners.set(partnerId, {
+          lastMessage: msg.content,
+          updatedAt: msg.created_at,
+        });
+      }
+    });
+
+    if (initialPartnerProfile && !partners.has(initialPartnerProfile.id)) {
+      partners.set(initialPartnerProfile.id, {
+        lastMessage: "",
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    const partnerIds = Array.from(partners.keys());
+    if (partnerIds.length) {
+      const { data: profiles, error: pErr } = await supabaseClient
+        .from("profiles")
+        .select("id, name, handle, avatar")
+        .in("id", partnerIds);
+
+      if (!pErr && profiles) {
+        profiles.forEach((p) => {
+          dmPartnersMap[p.id] = p;
+        });
+      }
+    }
+
+    if (initialPartnerProfile) {
+      dmPartnersMap[initialPartnerProfile.id] = initialPartnerProfile;
+    }
+
+    // レンダリング
+    dmConversationsEl.innerHTML = "";
+    if (!partnerIds.length && !initialPartnerProfile) {
+      dmConversationsEl.innerHTML =
+        '<div class="dm-conversation-item">まだメッセージはありません</div>';
+      return;
+    }
+
+    const sorted = Array.from(partners.entries()).sort(
+      (a, b) => new Date(b[1].updatedAt) - new Date(a[1].updatedAt)
+    );
+
+    sorted.forEach(([partnerId, info]) => {
+      const profile = dmPartnersMap[partnerId] || {
+        name: "ユーザー",
+        handle: "user",
+        avatar: "🧑‍💻",
+      };
+
+      const item = document.createElement("div");
+      item.className = "dm-conversation-item";
+      item.dataset.userId = partnerId;
+      item.innerHTML = `
+        <div class="dm-conv-avatar">${profile.avatar || "🧑‍💻"}</div>
+        <div class="dm-conv-main">
+          <div class="dm-conv-name">${profile.name}</div>
+          <div class="dm-conv-last">${info.lastMessage || ""}</div>
+        </div>
+      `;
+      item.addEventListener("click", () => {
+        selectConversation(partnerId);
+      });
+      dmConversationsEl.appendChild(item);
+    });
+
+    // 初期選択
+    if (initialPartnerProfile) {
+      selectConversation(initialPartnerProfile.id);
+    } else if (!currentDMPartnerId && sorted.length) {
+      selectConversation(sorted[0][0]);
+    } else if (currentDMPartnerId) {
+      selectConversation(currentDMPartnerId);
+    }
+  }
+
+  async function selectConversation(partnerId) {
+    currentDMPartnerId = partnerId;
+
+    if (dmConversationsEl) {
+      Array.from(dmConversationsEl.querySelectorAll(".dm-conversation-item")).forEach(
+        (el) => {
+          el.classList.toggle("active", el.dataset.userId === partnerId);
+        }
+      );
+    }
+
+    const profile =
+      dmPartnersMap[partnerId] || (await fetchProfileById(partnerId));
+
+    if (profile) dmPartnersMap[partnerId] = profile;
+
+    if (dmPartnerNameEl) dmPartnerNameEl.textContent = profile?.name || "ユーザー";
+    if (dmPartnerHandleEl)
+      dmPartnerHandleEl.textContent = profile?.handle
+        ? "@" + profile.handle
+        : "";
+    if (dmPartnerAvatarEl)
+      dmPartnerAvatarEl.textContent = profile?.avatar || "🧑‍💻";
+
+    await loadDMMessages(partnerId);
+  }
+
+  async function fetchProfileById(userId) {
+    const { data, error } = await supabaseClient
+      .from("profiles")
+      .select("id, name, handle, avatar")
+      .eq("id", userId)
+      .maybeSingle();
+    if (error) {
+      console.error("fetchProfileById error:", error);
+      return null;
+    }
+    return data;
+  }
+
+  async function loadDMMessages(partnerId) {
+    if (!dmMessagesEl || !currentUser) return;
+
+    const { data, error } = await supabaseClient
+      .from("messages")
+      .select("*")
+      .or(
+        `and(from_user_id.eq.${currentUser.id},to_user_id.eq.${partnerId}),and(from_user_id.eq.${partnerId},to_user_id.eq.${currentUser.id})`
+      )
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("dm messages load error:", error);
+      return;
+    }
+
+    dmMessagesEl.innerHTML = "";
+    data.forEach((msg) => {
+      const div = document.createElement("div");
+      div.className =
+        "dm-message " + (msg.from_user_id === currentUser.id ? "me" : "other");
+      div.innerHTML = `
+        <div>${msg.content}</div>
+        <div class="dm-message-time">${formatTime(msg.created_at)}</div>
+      `;
+      dmMessagesEl.appendChild(div);
+    });
+
+    dmMessagesEl.scrollTop = dmMessagesEl.scrollHeight;
+  }
+
+  async function sendDM() {
+    if (!currentUser || !dmInputEl || !currentDMPartnerId) {
+      alert("相手を選んでから送ってね🥺");
+      return;
+    }
+
+    const text = dmInputEl.value.trim();
+    if (!text) return;
+
+    const { error, data } = await supabaseClient
+      .from("messages")
+      .insert({
+        from_user_id: currentUser.id,
+        to_user_id: currentDMPartnerId,
+        content: text,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("dm insert error:", error);
+      alert("メッセージ送信に失敗した…😭");
+      return;
+    }
+
+    await createNotification("dm", currentDMPartnerId, text);
+
+    dmInputEl.value = "";
+    await loadDMConversations(dmPartnersMap[currentDMPartnerId] || null);
+  }
+
+  if (dmSendBtn && dmInputEl) {
+    dmSendBtn.addEventListener("click", sendDM);
+  }
 
   // ==============================
   // 投稿モーダル開閉
   // ==============================
-  const tweetModal = document.getElementById("tweetModal");
-  const openModalBtn = document.getElementById("openModalBtn");
-  const closeModalBtn = document.getElementById("closeModalBtn");
-  const tweetModalBackdrop = tweetModal?.querySelector(".modal-backdrop");
-
   function openTweetModal() {
     if (tweetModal) tweetModal.classList.remove("hidden");
   }
@@ -800,5 +1170,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   if (tweetModalBackdrop) {
     tweetModalBackdrop.addEventListener("click", closeTweetModal);
+  }
+
+  // ==============================
+  // 初期ロード
+  // ==============================
+  if (tweetsContainer) {
+    await loadTimeline();
+  }
+  await setupProfileView();
+  if (notificationsContainer) {
+    await loadNotifications();
+  }
+  if (dmConversationsEl) {
+    await setupDM();
   }
 });
