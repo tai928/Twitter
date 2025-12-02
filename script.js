@@ -544,29 +544,92 @@ async function initProfilePage() {
   const editProfileBtn = document.getElementById("editProfileBtn");
   const profileTweetsContainer = document.getElementById("profileTweetsContainer");
 
-  // 「誰のプロフィールを表示するか」
-  // ?uid= があればその人、なければ currentUser
-  let viewUserId = getQueryParam("uid");
+  // どのユーザーを見るか
+  const uidParam = getQueryParam("uid");
 
-  // ログイン情報がまだのこともあるから、ここで一応待つ
-  if (!currentUser) {
-    const { data, error } = await supabaseClient.auth.getUser();
-    if (!error && data.user) currentUser = data.user;
-  }
-  if (!viewUserId && currentUser) {
-    viewUserId = currentUser.id;
+  // -----------------------------
+  // ① uid が無い = 自分のプロフィール
+  // -----------------------------
+  if (!uidParam) {
+    // 念のためログイン状態確認
+    if (!currentUser) {
+      const { data, error } = await supabaseClient.auth.getUser();
+      if (!error && data.user) currentUser = data.user;
+    }
+    if (!currentUser) {
+      if (profileNameEl) profileNameEl.textContent = "ログインしていません";
+      if (profileHandleEl) profileHandleEl.textContent = "";
+      if (profileBioEl) profileBioEl.textContent = "";
+      if (editProfileBtn) editProfileBtn.style.display = "none";
+      return;
+    }
+
+    // サイドバーと同じ情報を使いたいので、currentProfile を優先
+    if (!currentProfile) {
+      await loadAuthState(); // まだなら取り直す
+    }
+
+    const me =
+      currentProfile || {
+        id: currentUser.id,
+        name: currentUser.user_metadata?.name || "StepLinkユーザー",
+        handle: currentUser.user_metadata?.handle || "user",
+        avatar: currentUser.user_metadata?.avatar || "🧑‍💻",
+        bio: "プロフィールはまだ書かれていません",
+      };
+
+    // 画面に反映
+    if (profileAvatarEl) profileAvatarEl.textContent = me.avatar || "🧑‍💻";
+    if (profileNameEl) profileNameEl.textContent = me.name;
+    if (profileHandleEl) profileHandleEl.textContent = "@" + me.handle;
+    if (profileBioEl)
+      profileBioEl.textContent =
+        me.bio || "プロフィールはまだ書かれていません";
+
+    // 編集ボタンは自分なので表示＆動作
+    if (editProfileBtn) {
+      editProfileBtn.style.display = "inline-flex";
+      editProfileBtn.onclick = () => openEditProfileModal(me);
+    }
+
+    // 自分のツイート一覧
+    if (profileTweetsContainer) {
+      const { data: tweets, error: tErr } = await supabaseClient
+        .from("tweets")
+        .select("*")
+        .eq("user_id", me.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      profileTweetsContainer.innerHTML = "";
+      if (!tErr && tweets) {
+        tweets.forEach((t) => {
+          const div = document.createElement("article");
+          div.className = "post";
+          div.innerHTML = `
+            <div class="post-avatar">${me.avatar || "🧑‍💻"}</div>
+            <div class="post-body">
+              <div class="post-header">
+                <span class="post-name">${escapeHtml(me.name)}</span>
+                <span class="post-handle">@${escapeHtml(me.handle)}</span>
+                <span class="post-time">${formatTime(t.created_at)}</span>
+              </div>
+              <div class="post-text">${escapeHtml(t.content)}</div>
+            </div>
+          `;
+          profileTweetsContainer.appendChild(div);
+        });
+      }
+    }
+
+    return; // ← ここで終了（他人プロフィール処理には行かない）
   }
 
-  if (!viewUserId) {
-    // 誰でもない → 未ログイン状態で profile.html に来た
-    if (profileNameEl) profileNameEl.textContent = "ログインしていません";
-    if (profileHandleEl) profileHandleEl.textContent = "";
-    if (profileBioEl) profileBioEl.textContent = "";
-    if (editProfileBtn) editProfileBtn.style.display = "none";
-    return;
-  }
+  // -----------------------------
+  // ② uid がある = 他人のプロフィール
+  // -----------------------------
+  const viewUserId = uidParam;
 
-  // プロフィール取得
   const { data: prof, error } = await supabaseClient
     .from("profiles")
     .select("id,name,handle,avatar,bio")
@@ -576,17 +639,8 @@ async function initProfilePage() {
   let viewProfile;
   if (!error && prof) {
     viewProfile = prof;
-  } else if (currentUser && viewUserId === currentUser.id) {
-    // 自分だが profiles に行がない場合
-    viewProfile = {
-      id: currentUser.id,
-      name: currentUser.user_metadata?.name || "StepLinkユーザー",
-      handle: currentUser.user_metadata?.handle || "user",
-      avatar: currentUser.user_metadata?.avatar || "🧑‍💻",
-      bio: "プロフィールはまだ書かれていません",
-    };
   } else {
-    // 他人で、かつ profiles に行がない → 仮の表示
+    // profiles に無い人用の適当な表示
     viewProfile = {
       id: viewUserId,
       name: "不明なユーザー",
@@ -596,26 +650,19 @@ async function initProfilePage() {
     };
   }
 
-  // 画面に反映
   if (profileAvatarEl) profileAvatarEl.textContent = viewProfile.avatar || "🧑‍💻";
   if (profileNameEl) profileNameEl.textContent = viewProfile.name;
   if (profileHandleEl) profileHandleEl.textContent = "@" + viewProfile.handle;
   if (profileBioEl)
-    profileBioEl.textContent = viewProfile.bio || "プロフィールはまだ書かれていません";
+    profileBioEl.textContent =
+      viewProfile.bio || "プロフィールはまだ書かれていません";
 
-  // 編集ボタンは「自分のプロフィールを見ている」時だけ表示
+  // 他人なので編集ボタンは出さない
   if (editProfileBtn) {
-    if (!currentUser || currentUser.id !== viewUserId) {
-      editProfileBtn.style.display = "none";
-    } else {
-      editProfileBtn.style.display = "inline-flex";
-      editProfileBtn.addEventListener("click", () =>
-        openEditProfileModal(viewProfile)
-      );
-    }
+    editProfileBtn.style.display = "none";
   }
 
-  // そのユーザーのツイート一覧
+  // そのユーザーのツイート
   if (profileTweetsContainer) {
     const { data: tweets, error: tErr } = await supabaseClient
       .from("tweets")
@@ -645,6 +692,7 @@ async function initProfilePage() {
     }
   }
 }
+
 
 // プロフィール編集モーダルを開く
 function openEditProfileModal(currentProf) {
@@ -682,6 +730,7 @@ function openEditProfileModal(currentProf) {
       return;
     }
 
+    // profiles テーブル更新
     const { error } = await supabaseClient.from("profiles").upsert({
       id: currentProf.id,
       name: newName,
@@ -689,24 +738,31 @@ function openEditProfileModal(currentProf) {
       avatar: newAvatar,
       bio: newBio,
     });
-
     if (error) {
       console.error("profile upsert error:", error);
       alert("プロフィール更新に失敗した…😭");
       return;
     }
 
-    // 自分のプロフィールなら currentProfile も更新
+    // auth の metadata も更新しておく（サイドバー表示用）
+    try {
+      await supabaseClient.auth.updateUser({
+        data: { name: newName, handle: newHandle, avatar: newAvatar },
+      });
+    } catch (e) {
+      console.warn("metadata update は失敗したけど致命的ではない", e);
+    }
+
+    // currentProfile も同期
     if (currentProfile && currentProfile.id === currentProf.id) {
       currentProfile.name = newName;
       currentProfile.handle = newHandle;
       currentProfile.avatar = newAvatar;
       currentProfile.bio = newBio;
-      await loadAuthState(); // サイドバー反映
     }
 
-    // 画面リロードして反映
-    location.reload();
+    await loadAuthState(); // サイドバー再描画
+    location.reload();     // プロフページも更新
   }
 
   saveBtn.addEventListener("click", onSave);
