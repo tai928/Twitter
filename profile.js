@@ -1,12 +1,14 @@
 // ==============================
-// Supabase 初期化（たい専用）
+// Supabase 初期化
 // ==============================
 const SUPABASE_URL = "https://ngtthuwmqdcxgddlbsyo.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_YJzguO8nmmVKURa58cKwVw__9ulKxI6";
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// HTML エスケープ用
+// ==============================
+// 小物関数
+// ==============================
 function escapeHtml(str = "") {
   return str
     .replaceAll("&", "&amp;")
@@ -16,7 +18,6 @@ function escapeHtml(str = "") {
     .replaceAll("'", "&#39;");
 }
 
-// yyyy-mm-ddTHH:MM:SS → mm/dd HH:MM
 function formatTime(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -27,120 +28,142 @@ function formatTime(iso) {
   return `${m}/${day} ${h}:${min}`;
 }
 
-// URL の ?uid= を取る
 function getUidFromQuery() {
   const params = new URLSearchParams(location.search);
   return params.get("uid");
 }
 
 // ==============================
-// メイン処理
+// メイン
 // ==============================
 document.addEventListener("DOMContentLoaded", async () => {
+  // ------- DOM 取得 -------
+  const currentUserAvatarEl = document.getElementById("currentUserAvatar");
+  const currentUserNameEl = document.getElementById("currentUserName");
+  const currentUserHandleEl = document.getElementById("currentUserHandle");
+  const logoutButton = document.getElementById("logoutButton");
+
   const profileAvatarEl = document.querySelector(".profile-avatar");
   const profileNameEl = document.getElementById("profileName");
   const profileHandleEl = document.getElementById("profileHandle");
   const profileBioEl = document.querySelector(".profile-bio");
+  const messageBtn = document.getElementById("messageBtn");
   const editProfileBtn = document.getElementById("editProfileBtn");
-  const messageBtn = document.getElementById("messageBtn"); // メッセージボタン（あれば）
   const profileTweetsContainer = document.getElementById("profileTweetsContainer");
 
-  // どのユーザーのプロフか決める
-  let viewingUid = getUidFromQuery(); // 他人を見るときは ?uid=xxx
+  // ------- ログインユーザー取得 -------
   let currentUser = null;
-
-  // まずログインユーザー取得
-  {
-    const { data, error } = await supabaseClient.auth.getUser();
-    if (!error && data.user) {
-      currentUser = data.user;
-    }
+  const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+  if (!userError && userData.user) {
+    currentUser = userData.user;
   }
 
-  // uid が無いときは「自分のプロフ」
-  if (!viewingUid) {
-    if (!currentUser) {
-      // 未ログイン
-      if (profileNameEl) profileNameEl.textContent = "ログインしていません";
-      if (profileHandleEl) profileHandleEl.textContent = "";
-      if (profileBioEl) profileBioEl.textContent = "ログインするとプロフィールが見られます";
-      if (editProfileBtn) editProfileBtn.style.display = "none";
-      if (messageBtn) messageBtn.style.display = "none";
-      return;
-    }
+  // 左下の「自分のアカウント表示」
+  if (currentUser) {
+    // プロフィールテーブルから自分の表示名などを取る
+    let myProfile = null;
+    const { data: myProf, error: myProfErr } = await supabaseClient
+      .from("profiles")
+      .select("name,handle,avatar")
+      .eq("id", currentUser.id)
+      .maybeSingle();
+
+    if (!myProfErr && myProf) myProfile = myProf;
+
+    const myName =
+      myProfile?.name || currentUser.user_metadata?.name || "ユーザー";
+    const myHandle =
+      myProfile?.handle || currentUser.user_metadata?.handle || "user";
+    const myAvatar =
+      myProfile?.avatar || currentUser.user_metadata?.avatar || "🧑‍💻";
+
+    if (currentUserAvatarEl) currentUserAvatarEl.textContent = myAvatar;
+    if (currentUserNameEl) currentUserNameEl.textContent = myName;
+    if (currentUserHandleEl) currentUserHandleEl.textContent = "@" + myHandle;
+  }
+
+  // ログアウト
+  if (logoutButton) {
+    logoutButton.addEventListener("click", async () => {
+      await supabaseClient.auth.signOut();
+      location.href = "index.html";
+    });
+  }
+
+  // ------- どのユーザーのプロフィールを見るか決定 -------
+  let viewingUid = getUidFromQuery(); // ?uid= があればその人
+  if (!viewingUid && currentUser) {
+    // なければ自分
     viewingUid = currentUser.id;
   }
 
-  // ==========================
-  // プロフィール情報取得
-  // ==========================
-  let profileRow = null;
-  {
-    const { data, error } = await supabaseClient
-      .from("profiles")
-      .select("id,name,handle,avatar,bio")
-      .eq("id", viewingUid)
-      .maybeSingle();
-
-    if (!error && data) {
-      profileRow = data;
-    }
+  // 未ログイン ＆ uid なし → 何もできない
+  if (!viewingUid) {
+    if (profileNameEl) profileNameEl.textContent = "ログインしていません";
+    if (profileHandleEl) profileHandleEl.textContent = "";
+    if (profileBioEl) profileBioEl.textContent = "ログインするとプロフィールが見られます。";
+    if (editProfileBtn) editProfileBtn.style.display = "none";
+    if (messageBtn) messageBtn.style.display = "none";
+    return;
   }
 
-  // profiles テーブルに行が無くても、一応何かしら表示する
-  const name =
-    profileRow?.name ||
-    currentUser?.user_metadata?.name ||
-    "ユーザー";
-  const handle =
-    profileRow?.handle ||
-    currentUser?.user_metadata?.handle ||
-    "user";
-  const avatar =
-    profileRow?.avatar ||
-    currentUser?.user_metadata?.avatar ||
-    "🧑‍💻";
-  const bio =
-    profileRow?.bio ||
-    "Bioが未設定です";
+  // ------- 表示対象ユーザーのプロフィール取得 -------
+  let targetProfile = null;
+  const { data: profData, error: profErr } = await supabaseClient
+    .from("profiles")
+    .select("id,name,handle,avatar,bio")
+    .eq("id", viewingUid)
+    .maybeSingle();
 
-  if (profileAvatarEl) profileAvatarEl.textContent = avatar;
-  if (profileNameEl) profileNameEl.textContent = name;
-  if (profileHandleEl) profileHandleEl.textContent = "@" + handle;
-  if (profileBioEl) profileBioEl.textContent = bio;
+  if (!profErr && profData) {
+    targetProfile = profData;
+  }
 
-  // ==========================
-  // ボタンの表示 / 非表示
-  // ==========================
+  // プロフィールが無い場合でも user_metadata から頑張る
   const isMe = currentUser && currentUser.id === viewingUid;
 
-  // 編集ボタン：自分の時だけ
+  const displayName =
+    targetProfile?.name ||
+    (isMe ? (currentUser.user_metadata?.name || "ユーザー") : "ユーザー");
+
+  const displayHandle =
+    targetProfile?.handle ||
+    (isMe ? (currentUser.user_metadata?.handle || "user") : "user");
+
+  const displayAvatar =
+    targetProfile?.avatar ||
+    (isMe ? (currentUser.user_metadata?.avatar || "🧑‍💻") : "🧑‍💻");
+
+  const displayBio =
+    targetProfile?.bio ||
+    (isMe ? "プロフィールはまだ書かれていません" : "Bioが未設定です");
+
+  // DOM に反映
+  if (profileAvatarEl) profileAvatarEl.textContent = displayAvatar;
+  if (profileNameEl) profileNameEl.textContent = displayName;
+  if (profileHandleEl) profileHandleEl.textContent = "@" + displayHandle;
+  if (profileBioEl) profileBioEl.textContent = displayBio;
+
+  // ------- ボタンの出し分け -------
   if (editProfileBtn) {
-    if (isMe) {
-      editProfileBtn.style.display = "inline-flex";
-    } else {
-      editProfileBtn.style.display = "none";
-    }
+    editProfileBtn.style.display = isMe ? "inline-flex" : "none";
   }
 
-  // メッセージボタン：自分以外の時だけ
   if (messageBtn) {
-    if (isMe) {
-      messageBtn.style.display = "none";
-    } else {
+    if (!isMe) {
       messageBtn.style.display = "inline-flex";
       messageBtn.addEventListener("click", () => {
-        // DM 画面に uid を渡して遷移
+        // DM 画面に uid を渡して開く
         location.href = `messages.html?uid=${encodeURIComponent(viewingUid)}`;
       });
+    } else {
+      messageBtn.style.display = "none";
     }
   }
 
-  // ==========================
-  // そのユーザーのツイート一覧
-  // ==========================
+  // ------- そのユーザーのツイート一覧 -------
   if (profileTweetsContainer) {
-    const { data: tweets, error } = await supabaseClient
+    const { data: tweets, error: tweetsErr } = await supabaseClient
       .from("tweets")
       .select("*")
       .eq("user_id", viewingUid)
@@ -149,19 +172,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     profileTweetsContainer.innerHTML = "";
 
-    if (!error && tweets && tweets.length) {
+    if (!tweetsErr && tweets && tweets.length) {
       tweets.forEach((t) => {
         const article = document.createElement("article");
         article.className = "post";
         article.innerHTML = `
-          <div class="post-avatar">${avatar}</div>
+          <div class="post-avatar">${displayAvatar}</div>
           <div class="post-body">
             <div class="post-header">
-              <span class="post-name">${escapeHtml(name)}</span>
-              <span class="post-handle">@${escapeHtml(handle)}</span>
+              <span class="post-name">${escapeHtml(displayName)}</span>
+              <span class="post-handle">@${escapeHtml(displayHandle)}</span>
               <span class="post-time">${formatTime(t.created_at)}</span>
             </div>
-            <div class="post-text">${escapeHtml(t.content)}</div>
+            <div class="post-text">${escapeHtml(t.content || "")}</div>
           </div>
         `;
         profileTweetsContainer.appendChild(article);
