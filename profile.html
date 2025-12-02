@@ -2,10 +2,9 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>StepLink</title>
+  <title>StepLink - プロフィール</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div class="app">
@@ -20,7 +19,7 @@
         <a href="profile.html" class="nav-item active">プロフィール</a>
       </nav>
 
-      <button class="post-button" id="openModalBtn">投稿する</button>
+      <button class="post-button" onclick="location.href='index.html#new'">投稿する</button>
 
       <div class="account-summary">
         <div class="account-main">
@@ -30,8 +29,9 @@
             <div class="account-handle" id="currentUserHandle"></div>
           </div>
         </div>
-        <button class="icon-btn small" id="switchAccountBtn">アカウント</button>
-        <button class="logout-button" id="logoutBtn">ログアウト</button>
+
+        <button class="icon-btn small" id="accountButton">アカウント</button>
+        <button class="logout-button" id="logoutButton">ログアウト</button>
       </div>
     </aside>
 
@@ -41,101 +41,45 @@
         <h1>プロフィール</h1>
       </header>
 
-      <div class="profile-banner"></div>
+      <section class="profile-header">
+        <div class="profile-banner"></div>
 
-      <div class="profile-top">
-        <div class="profile-avatar-wrapper">
-          <div class="profile-avatar" id="profileAvatar">🧑‍💻</div>
+        <div class="profile-top">
+          <div class="profile-avatar-wrapper">
+            <div class="profile-avatar">🧑‍💻</div>
+          </div>
+
+          <div class="profile-top-buttons">
+            <!-- 他人のプロフィールのときだけ表示される -->
+            <button id="messageBtn" class="profile-icon-btn">メッセージ</button>
+            <!-- 自分のプロフィールのときだけ表示される -->
+            <button id="editProfileBtn" class="edit-profile-btn">プロフィールを編集</button>
+          </div>
         </div>
 
-        <div class="profile-top-buttons">
-          <button id="dmFromProfileBtn" class="profile-icon-btn">💬 メッセージ</button>
-          <button id="editProfileBtn" class="edit-profile-btn">プロフィールを編集</button>
+        <div class="profile-info">
+          <div id="profileName" class="profile-name">ユーザー</div>
+          <div id="profileHandle" class="profile-handle">@user</div>
+          <div class="profile-bio">Bioが未設定です</div>
         </div>
-      </div>
 
-      <div class="profile-info">
-        <div class="profile-name" id="profileName">ユーザー</div>
-        <div class="profile-handle" id="profileHandle">@user</div>
-        <div class="profile-bio" id="profileBio">Bioが未設定です</div>
-      </div>
+        <div class="profile-tabs">
+          <div class="profile-tab active">ツイート</div>
+        </div>
+      </section>
 
-      <div class="profile-tabs">
-        <div class="profile-tab active">ツイート</div>
-      </div>
-
+      <!-- そのユーザーのツイート一覧 -->
       <section id="profileTweetsContainer" class="posts"></section>
     </main>
   </div>
 
-  <!-- プロフィール編集モーダル -->
-  <div id="editProfileModal" class="modal hidden">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-      <header class="modal-header">
-        <button id="closeEditProfileModal" class="icon-btn">✕</button>
-      </header>
-
-      <div class="modal-body edit-profile-body">
-        <label>名前
-          <input id="editNameInput" type="text" />
-        </label>
-
-        <label>アイコン絵文字
-          <input id="editAvatarInput" type="text" placeholder="🎣" />
-        </label>
-
-        <label>自己紹介（bio）
-          <textarea id="editBioInput" rows="4"></textarea>
-        </label>
-
-        <button id="saveProfileBtn" class="primary">保存する</button>
-        <div id="editProfileError" class="account-error"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- アカウントモーダル（共通） -->
-  <div id="accountModal" class="modal hidden">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-      <header class="modal-header">
-        <button id="closeAccountModalBtn" class="icon-btn">✕</button>
-      </header>
-
-      <div class="modal-body account-modal-body">
-        <div class="account-tabs">
-          <button class="account-tab active" data-mode="login">ログイン</button>
-          <button class="account-tab" data-mode="register">新規登録</button>
-        </div>
-
-        <div id="accountLoginView">
-          <label>メール<input id="loginHandleInput" type="email" /></label>
-          <label>パスワード<input id="loginPasswordInput" type="password" /></label>
-          <button class="primary" id="loginSubmitBtn">ログイン</button>
-          <div id="loginError" class="account-error"></div>
-        </div>
-
-        <div id="accountRegisterView" class="hidden">
-          <label>名前<input id="regNameInput" type="text" /></label>
-          <label>ハンドル（@なし）<input id="regHandleInput" type="text" /></label>
-          <label>メール<input id="regEmailInput" type="email" /></label>
-          <label>絵文字<input id="regAvatarInput" type="text" placeholder="🎣" /></label>
-          <label>パスワード<input id="regPasswordInput" type="password" /></label>
-          <button class="primary" id="registerSubmitBtn">アカウント作成</button>
-          <div id="registerError" class="account-error"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ボトムナビ -->
+  <!-- スマホ用ボトムナビ -->
   <nav class="bottom-nav">
     <a href="index.html" class="bottom-nav-item">
       <span class="icon">🏠</span><span>ホーム</span>
     </a>
     <a href="messages.html" class="bottom-nav-item">
-      <span class="icon">💬</span><span>メッセージ</span>
+      <span class="icon">✉️</span><span>メッセージ</span>
     </a>
     <a href="notifications.html" class="bottom-nav-item">
       <span class="icon">🔔</span><span>通知</span>
@@ -143,11 +87,10 @@
     <a href="profile.html" class="bottom-nav-item active">
       <span class="icon">👤</span><span>プロフィール</span>
     </a>
-    <button type="button" class="bottom-nav-item" id="switchAccountBtnMobile">
-      <span class="icon">🔑</span><span>アカウント</span>
-    </button>
   </nav>
 
-  <script src="script.js"></script>
+  <!-- Supabase & このページ専用の JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="profile.js"></script>
 </body>
 </html>
