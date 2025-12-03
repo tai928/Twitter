@@ -1,10 +1,9 @@
 // ==============================
 // Supabase 初期化
 // ==============================
-const SUPABASE_URL = "https://ngtthuwmqdcxgddlbsyo.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_YJzguO8nmmVKURa58cKwVw__9ulKxI6";
+// supabaseClient.js に任せるので何も書かない
+console.log("profile.js loaded");
 
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ==============================
 // 小物関数
