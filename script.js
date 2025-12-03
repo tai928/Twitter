@@ -2,11 +2,11 @@
 // StepLink 共通スクリプト  (script.js)
 // ========================================
 
-// supabaseClient.js
+// ★ 自分の Supabase 設定に合わせてね
 const SUPABASE_URL = "https://ngtthuwmqdcxgddlbsyo.supabase.co";
-const SUPABASE_KEY = "sb_publishable_YJzguO8nmmVKURa58cKwVw__9ulKxI6";
+const SUPABASE_ANON_KEY = "sb_publishable_YJzguO8nmmVKURa58cKwVw__9ulKxI6";
 
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ログイン中ユーザー
 let currentUser = null;
