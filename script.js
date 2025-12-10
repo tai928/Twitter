@@ -18,12 +18,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // DOM のよく使う要素
   const tweetsContainer = document.getElementById("tweetsContainer");
-  const profileTweetsContainer = document.getElementById(
-    "profileTweetsContainer"
-  );
-  const notificationsContainer = document.getElementById(
-    "notificationsContainer"
-  );
+  const profileTweetsContainer = document.getElementById("profileTweetsContainer");
+  const notificationsContainer = document.getElementById("notificationsContainer");
 
   // DM 関連要素
   const dmLayout = document.querySelector(".dm-layout");
@@ -95,9 +91,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // プロフィール編集モーダル
   const editProfileModal = document.getElementById("editProfileModal");
-  const closeEditProfileModalBtn = document.getElementById(
-    "closeEditProfileModalBtn"
-  );
+  const closeEditProfileModalBtn = document.getElementById("closeEditProfileModalBtn");
   const editProfileNameInput = document.getElementById("editProfileName");
   const editProfileHandleInput = document.getElementById("editProfileHandle");
   const editProfileAvatarInput = document.getElementById("editProfileAvatar");
@@ -210,9 +204,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     switchAccountBtn.addEventListener("click", () => openModal(accountModal));
   }
   if (closeAccountModalBtn) {
-    closeAccountModalBtn.addEventListener("click", () =>
-      closeModal(accountModal)
-    );
+    closeAccountModalBtn.addEventListener("click", () => closeModal(accountModal));
   }
 
   accountTabs.forEach((tab) => {
@@ -220,8 +212,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   async function handleRegister() {
-    if (!regNameInput || !regHandleInput || !regEmailInput || !regPasswordInput)
-      return;
+    if (!regNameInput || !regHandleInput || !regEmailInput || !regPasswordInput) return;
 
     const name = regNameInput.value.trim();
     const handle = regHandleInput.value.trim();
@@ -342,9 +333,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         <div class="post-footer">
           <button class="icon-btn reply-btn" data-tweet-id="${row.id}">返信</button>
           <button class="icon-btn like-btn" data-tweet-id="${row.id}">
-            <span class="like-icon">${
-              options.likedByMe ? "♥" : "♡"
-            }</span> <span class="like-count">${options.likeCount ?? 0}</span>
+            <span class="like-icon">${options.likedByMe ? "♥" : "♡"}</span>
+            <span class="like-count">${options.likeCount ?? 0}</span>
           </button>
         </div>
         <div class="replies" data-tweet-id="${row.id}"></div>
@@ -398,7 +388,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     tweetsContainer.innerHTML = "";
 
-    if (tweets.length === 0) return;
+    if (!tweets || tweets.length === 0) return;
 
     const tweetIds = tweets.map((t) => t.id);
 
@@ -538,6 +528,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function openReplyUI(tweetId) {
     replyingTweetId = tweetId;
+    // ★ ここでモーダルが用意されているか確認し、なければ prompt にフォールバック
     if (replyModal && replyTextarea && replyCharCounter) {
       replyTextarea.value = "";
       updateCounter(replyTextarea, replyCharCounter);
@@ -577,14 +568,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       currentUser.user_metadata?.avatar ||
       "🧑‍💻";
 
-    const { data, error } = await supabaseClient.from("tweet_replies").insert({
-      tweet_id: tweetId,
-      user_id: currentUser.id,
-      name,
-      handle,
-      avatar,
-      content: text,
-    }).select("*").single();
+    const { data, error } = await supabaseClient
+      .from("tweet_replies")
+      .insert({
+        tweet_id: tweetId,
+        user_id: currentUser.id,
+        name,
+        handle,
+        avatar,
+        content: text,
+      })
+      .select("*")
+      .single();
 
     if (error) {
       console.error("reply insert error:", error);
@@ -677,7 +672,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         data.forEach((p) => profilesCache.set(p.id, p));
       }
     }
-    return ids.map((id) => profilesCache.get(id) || { id, name: "ユーザー", handle: "user", avatar: "🧑‍💻" });
+    return ids.map(
+      (id) =>
+        profilesCache.get(id) || {
+          id,
+          name: "ユーザー",
+          handle: "user",
+          avatar: "🧑‍💻",
+        }
+    );
   }
 
   async function loadDMConversations() {
@@ -686,9 +689,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const { data, error } = await supabaseClient
       .from("messages")
       .select("id,from_user_id,to_user_id,content,created_at")
-      .or(
-        `from_user_id.eq.${currentUser.id},to_user_id.eq.${currentUser.id}`
-      )
+      .or(`from_user_id.eq.${currentUser.id},to_user_id.eq.${currentUser.id}`)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -883,11 +884,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!target) return;
     const uid = target.dataset.profileUid;
     if (!uid) return;
+
+    // ★ 修正ポイント：
+    // aタグなどの中にあっても通知ページに飛ばされないように、
+    // デフォルトのリンク遷移を止める
+    e.preventDefault();
+    e.stopPropagation();
+
     window.location.href = `profile.html?uid=${encodeURIComponent(uid)}`;
   });
 
   // =====================================
-  // ツイート内ボタン（返信 / いいね / DM）のクリック委譲
+  // ツイート内ボタン（返信 / いいね）のクリック委譲
   // =====================================
   document.addEventListener("click", (e) => {
     const replyBtn = e.target.closest(".reply-btn");
@@ -1028,9 +1036,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             <div class="post-footer">
               <button class="icon-btn reply-btn" data-tweet-id="${t.id}">返信</button>
               <button class="icon-btn like-btn" data-tweet-id="${t.id}">
-                <span class="like-icon">${
-                  likedByMe.has(t.id) ? "♥" : "♡"
-                }</span>
+                <span class="like-icon">${likedByMe.has(t.id) ? "♥" : "♡"}</span>
                 <span class="like-count">${likeUsers.length}</span>
               </button>
             </div>
