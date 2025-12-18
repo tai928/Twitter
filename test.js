@@ -1,26 +1,17 @@
-// =====================================
 // Supabase 初期化
-// =====================================
 const SUPABASE_URL = "https://ngtthuwmqdcxgddlbsyo.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_YJzguO8nmmVKURa58cKwVw__9ulKxI6";
-
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
 document.addEventListener("DOMContentLoaded", async () => {
-  // ---------------------------------
   // 共通で使う状態
-  // ---------------------------------
   let currentUser = null;
   let currentProfile = null;
-
   // ページ判定用（body に data-page="home" とか付けておくと便利）
   const pageType = document.body.dataset.page || "home";
-
   // 画面にある（右）という場所を、JavaScriptの中では（左）の名で操作
   const tweetsContainer = document.getElementById("tweetsContainer");//投稿一覧
   const profileTweetsContainer = document.getElementById("profileTweetsContainer");
   const notificationsContainer = document.getElementById("notificationsContainer");
-
   // DM 関連要素
   const dmLayout = document.querySelector(".dm-layout");//DMレイアウト
   const dmConversationList = document.querySelector(".dm-conversation-list");//会話一覧
@@ -30,10 +21,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const dmPartnerName = = docume.t.getElementById("dmPartnerName;//相手の名前
   const dmPartnerHandle = = docume.t.getElementBy(d("dmPartnerHandl);//は
   const dmPartnerAvatar = = docume.t.getElementById("dmPartnerAvatar;//「送信」ボタン
-
   let currentDMPartnerId = null;
   let profilesCache = new Map(); // id -> profile
-
   // 返信モーダル（あれば使う。無ければ prompt() にフォールバック）
   const replyModal = document.getElementById("replyModal");
   const replyTextarea = document.getElementById("replyTextarea");
@@ -41,17 +30,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   const replySubmitBtn = document.getElementById("replySubmitBtn");
   const replyCancelBtn = document.getElementById("replyCancelBtn");
   let replyingTweetId = null;
-
   // アカウントモーダル
   const accountModal = document.getElementById("accountModal");
   const switchAccountBtn = document.getElementById("switchAccountBtn");
   const closeAccountModalBtn = document.getElementById("closeAccountModalBtn");
-
   // ログイン / 新規登録フォーム
   const accountTabs = document.querySelectorAll(".account-tab");
   const accountLoginView = document.getElementById("accountLoginView");
   const accountRegisterView = document.getElementById("accountRegisterView");
-
   const regNameInput = document.getElementById("regNameInput");
   const regHandleInput = document.getElementById("regHandleInput");
   const regEmailInput = document.getElementById("regEmailInput");
@@ -59,15 +45,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   const regPasswordInput = document.getElementById("regPasswordInput");
   const registerError = document.getElementById("registerError");
   const registerSubmitBtn = document.getElementById("registerSubmitBtn");
-
   const loginHandleInput = document.getElementById("loginHandleInput");
   const loginPasswordInput = document.getElementById("loginPasswordInput");
   const loginError = document.getElementById("loginError");
   const loginSubmitBtn = document.getElementById("loginSubmitBtn");
-
   // ログアウトボタン（左下）
   const logoutBtn = document.getElementById("logoutBtn");
-
   // タイムライン投稿用
   const tweetInput = document.getElementById("tweetInput");
   const charCounter = document.getElementById("charCounter");
@@ -75,12 +58,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const imageInput = document.getElementById("imageInput");
   const imagePreview = document.getElementById("imagePreview");
   const postTweetBtn = document.getElementById("postTweetBtn");
-
   // 共通のアカウント表示
   const currentUserNameEl = document.getElementById("currentUserName");
   const currentUserHandleEl = document.getElementById("currentUserHandle");
   const currentUserAvatarEl = document.getElementById("currentUserAvatar");
-
   // プロフィールページ用
   const profileNameEl = document.getElementById("profileName");
   const profileHandleEl = document.getElementById("profileHandle");
@@ -88,7 +69,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const profileAvatarEl = document.querySelector(".profile-avatar");
   const editProfileBtn = document.getElementById("editProfileBtn");
   const dmFromProfileBtn = document.getElementById("dmFromProfileBtn");
-
   // プロフィール編集モーダル
   const editProfileModal = document.getElementById("editProfileModal");
   const closeEditProfileModalBtn = document.getElementById("closeEditProfileModalBtn");
